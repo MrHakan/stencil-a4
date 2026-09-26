@@ -91,7 +91,8 @@ label,.field-label{font-size:11px;font-weight:700;color:#354750}
 .legend-item{display:flex;align-items:center;gap:6px}
 .legend-line{width:17px;border-top:1px dashed #5f91aa}
 .legend-outline{width:12px;height:12px;border:1px solid #1e3038;background:#fff}
-.legend-overlap{width:12px;height:12px;background:#d99a8a55;border:1px dotted #c34a32}
+.legend-cut{width:17px;border-top:2px solid #c8321c}
+.legend-align{width:17px;border-top:2px solid #1b6fa0}
 .pages-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .pages-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #edf1f3}
 .pages-head strong{font-size:12px}

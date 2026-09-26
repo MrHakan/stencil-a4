@@ -12,7 +12,7 @@ Türkçe, tarayıcıda çalışan ve gerçek ölçekte çıktı hazırlayan sten
 - A1, A2, B1 gibi sayfa etiketleri; kesim alanı, hizalama işaretleri ve 100 mm kontrol çizgisi
 - Dolu stencil ve içi boş kontur önizlemesi
 - Gerçek ölçekte SVG indirme ve tarayıcıdan yazdırma / PDF kaydetme
-- Bindirme şeritleri ve komşu sayfa kodları (← A1, A3 →) her sayfada işaretlenir
+- Kes-bindir kılavuzları: kırmızı ✂ kesim çizgisi, komşu sayfada mavi hizalama çizgisi ve bindirme şeridinde eşleşen hedef işaretleri
 - İsteğe bağlı birleştirme haritası sayfası: tüm yerleşim ve sayfa kodları tek A4'te
 - Yazı, gerçek harf çizimine (mürekkep sınırına) göre tasarım alanına sığdırılır; harf yüksekliği özet şeridinde görünür
 - SVG dışa aktarımında Stardos Stencil veya yüklenen font dosyanın içine gömülür
@@ -54,7 +54,16 @@ GitHub Actions her push ve pull request'te iki test takımını da çalıştır�
 
 Yazdırma penceresinde A4 kağıt, kenar boşluğu **Yok**, ölçek **%100 / Gerçek boyut** seçilmeli; tarayıcı üstbilgi ve altbilgileri kapatılmalı. Yazıcı donanımı fiziksel kâğıt kenarlarına kadar baskı yapamayabilir; güvenli kenar payı bu sınırı dikkate almak içindir. İlk sayfadaki 100 mm kontrol çizgisini cetvelle ölçerek çıktıyı doğrula.
 
-Sayfa bindirmesi komşu A4’lerde aynı tasarım bölümünün ortak kalan kısmıdır ve sayfa görünümünde açık kırmızı şeritle gösterilir. Baskıları bu şeritleri üst üste getirerek hizala; kenardaki oklar (ör. `→ A2`) hangi sayfanın komşu olduğunu gösterir. Güvenli kenar payı, A4 başına tasarıma ayrılan kullanılabilir alanı azaltır; uygulama sayfa sayısını bu alana göre hesaplar.
+### Sayfaları birleştirme
+
+Her sayfa, solundaki ve üstündeki komşunun **üzerine** bindirilir:
+
+1. Sol/üst kenardaki **kırmızı ✂ çizgiyi** cetvelle kes. Dışında kalan gri şerit atılır. Çizgi kâğıdın bir ucundan öbür ucuna uzanır.
+2. Kesilen kenarı, komşu sayfadaki **mavi hizalama çizgisine** oturt. Mavi çizgi o kenarın tam olarak nereye geleceğini gösterir; üzerindeki etiket hangi sayfanın geleceğini yazar (ör. `A2 kesim kenarı bu çizgiye`).
+3. Bindirme şeridinde her iki sayfada da aynı yerde basılan **hedef işaretlerini** ve harf çizgilerini üst üste getir, sonra bantla veya yapıştır.
+4. Önce her satırı soldan sağa (A1 → A2 → …), sonra satırları üstten alta birleştir.
+
+Baskının başındaki **birleştirme haritası** sayfası tüm düzeni, sayfa kodlarını ve bu adımları gösterir (varsayılan olarak açık). Bindirme için 10–20 mm önerilir; hedef işaretleri 4 mm ve üzeri bindirmede çizilir.
 
 ## Fontlar
 

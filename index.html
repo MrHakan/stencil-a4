@@ -99,10 +99,10 @@
             <label class="check"><input id="showLabels" type="checkbox" checked><span>Sayfa kodları (A1, A2, B1…)</span></label>
             <label class="check"><input id="showGuides" type="checkbox" checked><span>Hizalama ve kesim kılavuzları</span></label>
             <label class="check"><input id="showRuler" type="checkbox" checked><span>İlk sayfaya 100 mm kontrol çizgisi</span></label>
-            <label class="check"><input id="showOverlap" type="checkbox" checked><span>Bindirme alanlarını işaretle ve komşu sayfa kodlarını yaz</span></label>
-            <label class="check"><input id="includeMap" type="checkbox"><span>Baskının başına birleştirme haritası sayfası ekle</span></label>
+            <label class="check"><input id="showOverlap" type="checkbox" checked><span>Birleştirme kılavuzları: ✂ kesim çizgisi, hizalama çizgisi ve hedef işaretleri</span></label>
+            <label class="check"><input id="includeMap" type="checkbox" checked><span>Baskının başına birleştirme haritası sayfası ekle</span></label>
           </div>
-          <p class="note">Bindirme, komşu sayfalarda tekrar basılan ortak şerittir; sayfaları bu şeritleri üst üste getirerek hizala. Güvenli kenar payı yazıcının basamadığı kâğıt kenarını dışarıda bırakır. Tek A4 düzeninde tasarım güvenli alanın ortasına yerleşir.</p>
+          <p class="note"><b>Birleştirme:</b> her sayfayı sol/üst kenarındaki kırmızı <b>✂</b> çizgisinden kes, kesilen kenarı komşu sayfadaki mavi çizgiye oturt ve bindirme şeridindeki hedefleri üst üste getir. Bindirme 10–20 mm önerilir. Güvenli kenar payı yazıcının basamadığı kâğıt kenarını dışarıda bırakır.</p>
         </div>
       </section>
 
@@ -137,7 +137,7 @@
         </div>
         <div class="preview-stage" id="previewStage"><div class="preview-empty">Önizleme hazırlanıyor…</div></div>
         <div class="preview-caption">
-          <div class="legend"><span class="legend-item"><i class="legend-line"></i>A4 döşeme sınırı</span><span class="legend-item"><i class="legend-outline"></i>Tasarım sınırı</span><span class="legend-item"><i class="legend-overlap"></i>Bindirme (sayfa görünümü)</span><span id="scaleCaption">Ekran önizlemesi ölçekli gösterilir; baskı 1:1 kalır.</span></div>
+          <div class="legend"><span class="legend-item"><i class="legend-line"></i>A4 döşeme sınırı</span><span class="legend-item"><i class="legend-outline"></i>Tasarım sınırı</span><span class="legend-item"><i class="legend-cut"></i>✂ Kesim çizgisi</span><span class="legend-item"><i class="legend-align"></i>Hizalama çizgisi</span><span id="scaleCaption">Ekran önizlemesi ölçekli gösterilir; baskı 1:1 kalır.</span></div>
           <span id="selectedPageCaption">Sayfa A1</span>
         </div>
       </section>

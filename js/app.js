@@ -138,23 +138,70 @@
   function addCross(parent,x,y,size,color){
     parent.appendChild(svgNode('path',{d:'M '+(x-size)+' '+y+' H '+(x+size)+' M '+x+' '+(y-size)+' V '+(y+size),fill:'none',stroke:color||'#30444e','stroke-width':.32}));
   }
-  function drawOverlapZones(g,page,info){
-    if(!state.showOverlap||state.outputMode!=='tile'||info.overlap<=0)return;
-    const m=info.margin,o=info.overlap,zone={fill:'#c34a32','fill-opacity':.07,stroke:'none'},edge={fill:'none',stroke:'#c34a32','stroke-width':.25,'stroke-dasharray':'.8 1.2','stroke-opacity':.7};
-    const zones=[];
-    if(page.col>0)zones.push([m,m,o,info.cellH,'M '+(m+o)+' '+m+' v '+info.cellH]);
-    if(page.col<info.cols-1)zones.push([m+info.cellW-o,m,o,info.cellH,'M '+(m+info.cellW-o)+' '+m+' v '+info.cellH]);
-    if(page.row>0)zones.push([m,m,info.cellW,o,'M '+m+' '+(m+o)+' h '+info.cellW]);
-    if(page.row<info.rows-1)zones.push([m,m+info.cellH-o,info.cellW,o,'M '+m+' '+(m+info.cellH-o)+' h '+info.cellW]);
-    zones.forEach(function(z){
-      g.appendChild(svgNode('rect',Object.assign({x:z[0],y:z[1],width:z[2],height:z[3]},zone)));
-      g.appendChild(svgNode('path',Object.assign({d:z[4]},edge)));
-    });
-  }
   function neighbourLabel(page,dr,dc){
     const r=page.row+dr,c=page.col+dc;
     if(r<0||c<0||r>=pageInfo.rows||c>=pageInfo.cols)return '';
     return Core.pageName(r,c);
+  }
+  function addTarget(parent,x,y,r,color){
+    parent.appendChild(svgNode('circle',{cx:x,cy:y,r:r,fill:'none',stroke:color,'stroke-width':.3}));
+    parent.appendChild(svgNode('circle',{cx:x,cy:y,r:r*.35,fill:color}));
+    addCross(parent,x,y,r*1.5,color);
+  }
+  function label(parent,text,x,y,opts){
+    const o=opts||{},attrs={x:x,y:y,'font-family':'Arial, sans-serif','font-size':o.size||2.6,'font-weight':700,fill:o.color||'#263943','text-anchor':'middle','dominant-baseline':'central'};
+    if(o.rotate)attrs.transform='rotate('+o.rotate+' '+x+' '+y+')';
+    parent.appendChild(svgText(attrs,text));
+  }
+  /* Assembly guides. Each sheet is laid ON TOP of its left and upper neighbours:
+     - left/top edge: red cut line at the safe-area edge, the margin outside it is discarded;
+     - right/bottom edge: blue line where the next sheet's cut edge must sit;
+     - the shared overlap strip carries identical targets on both sheets, so they can be
+       matched by eye (or against a window) before gluing. */
+  function drawJoinGuides(g,page,info){
+    if(!state.showOverlap||state.outputMode!=='tile'||info.totalPages<2)return;
+    const m=info.margin,o=info.overlap,cw=info.cellW,ch=info.cellH,pw=info.width,ph=info.height;
+    const CUT='#c8321c',ALIGN='#1b6fa0';
+    const left=neighbourLabel(page,0,-1),right=neighbourLabel(page,0,1),top=neighbourLabel(page,-1,0),bottom=neighbourLabel(page,1,0);
+    const lay=svgNode('g'),lines=svgNode('g'),marks=svgNode('g');
+    // Areas to throw away and strips that overlap a neighbour.
+    if(left&&m>0)lay.appendChild(svgNode('rect',{x:0,y:0,width:m,height:ph,fill:'#5d6e76','fill-opacity':.14}));
+    if(top&&m>0)lay.appendChild(svgNode('rect',{x:left?m:0,y:0,width:left?pw-m:pw,height:m,fill:'#5d6e76','fill-opacity':.14}));
+    if(o>0){
+      if(left)lay.appendChild(svgNode('rect',{x:m,y:m,width:o,height:ch,fill:CUT,'fill-opacity':.07}));
+      if(top)lay.appendChild(svgNode('rect',{x:m,y:m,width:cw,height:o,fill:CUT,'fill-opacity':.07}));
+      if(right)lay.appendChild(svgNode('rect',{x:m+cw-o,y:m,width:o,height:ch,fill:ALIGN,'fill-opacity':.07}));
+      if(bottom)lay.appendChild(svgNode('rect',{x:m,y:m+ch-o,width:cw,height:o,fill:ALIGN,'fill-opacity':.07}));
+    }
+    // Cut lines run edge to edge so a ruler can follow them.
+    const cut={fill:'none',stroke:CUT,'stroke-width':.45};
+    if(left)lines.appendChild(svgNode('path',Object.assign({d:'M '+m+' 0 V '+ph},cut)));
+    if(top)lines.appendChild(svgNode('path',Object.assign({d:'M 0 '+m+' H '+pw},cut)));
+    const align={fill:'none',stroke:ALIGN,'stroke-width':.45};
+    const ax=m+cw-o,ay=m+ch-o;
+    if(right){
+      lines.appendChild(svgNode('path',Object.assign({d:'M '+ax+' 0 V '+ph},align)));
+      [m+ch*.2,m+ch*.5,m+ch*.8].forEach(function(y){lines.appendChild(svgNode('path',{d:'M '+(ax-2.2)+' '+(y-1.6)+' L '+ax+' '+y+' L '+(ax-2.2)+' '+(y+1.6),fill:'none',stroke:ALIGN,'stroke-width':.4}))});
+    }
+    if(bottom){
+      lines.appendChild(svgNode('path',Object.assign({d:'M 0 '+ay+' H '+pw},align)));
+      [m+cw*.2,m+cw*.5,m+cw*.8].forEach(function(x){lines.appendChild(svgNode('path',{d:'M '+(x-1.6)+' '+(ay-2.2)+' L '+x+' '+ay+' L '+(x+1.6)+' '+(ay-2.2),fill:'none',stroke:ALIGN,'stroke-width':.4}))});
+    }
+    // Matching targets inside each overlap strip (same design position on both sheets).
+    if(o>=4){
+      const r=Math.min(3,o/2-1),fr=[.12,.32,.68,.88];
+      if(left)fr.forEach(function(f){addTarget(marks,m+o/2,m+ch*f,r,CUT)});
+      if(right)fr.forEach(function(f){addTarget(marks,m+cw-o/2,m+ch*f,r,ALIGN)});
+      if(top)fr.forEach(function(f){addTarget(marks,m+cw*f,m+o/2,r,CUT)});
+      if(bottom)fr.forEach(function(f){addTarget(marks,m+cw*f,m+ch-o/2,r,ALIGN)});
+    }
+    // Labels: in the discarded margin for cut lines, inside the strip for alignment lines.
+    const inMargin=m>=5;
+    if(left)label(marks,'✂ KES · '+left+' üzerine bindir',inMargin?m/2:m+o/2,ph/2,{rotate:-90,color:CUT,size:inMargin?Math.min(3,m*.45):2.4});
+    if(top)label(marks,'✂ KES · '+top+' üzerine bindir',pw/2,inMargin?m/2:m+o/2,{color:CUT,size:inMargin?Math.min(3,m*.45):2.4});
+    if(right&&o>=4)label(marks,right+' kesim kenarı bu çizgiye ▸',m+cw-o/2,m+ch/2,{rotate:-90,color:ALIGN,size:Math.min(2.6,o*.4)});
+    if(bottom&&o>=4)label(marks,bottom+' kesim kenarı bu çizgiye ▾',m+cw/2,m+ch-o/2,{color:ALIGN,size:Math.min(2.6,o*.4)});
+    g.appendChild(lay);g.appendChild(lines);g.appendChild(marks);
   }
   function drawSheetGuides(svg,page,info){
     const g=svgNode('g',{'aria-label':'Print guides'}),m=info.margin,pw=info.width,ph=info.height;
@@ -163,14 +210,9 @@
       [[5,5],[pw-5,5],[5,ph-5],[pw-5,ph-5]].forEach(function(p){addCross(g,p[0],p[1],1.3,'#334d58')});
       g.appendChild(svgNode('path',{d:'M '+m+' '+(m-1.7)+' v 3.4 M '+(pw-m)+' '+(m-1.7)+' v 3.4 M '+(m-1.7)+' '+m+' h 3.4 M '+(m-1.7)+' '+(ph-m)+' h 3.4',fill:'none',stroke:'#405d69','stroke-width':.3}));
     }
-    drawOverlapZones(g,page,info);
+    drawJoinGuides(g,page,info);
     if(state.showLabels){
       g.appendChild(svgText({x:8,y:6,'font-family':'Arial, sans-serif','font-size':3.1,'font-weight':700,fill:'#263943','letter-spacing':.15},page.label));
-      if(state.outputMode==='tile'&&pageInfo.totalPages>1){
-        const n={font:'Arial, sans-serif',size:2.2,fill:'#6a7f89'};
-        const around=[['↑',neighbourLabel(page,-1,0),pw/2,m>4?m-1.2:3,'middle'],['↓',neighbourLabel(page,1,0),pw/2,ph-(m>4?m-3:1.5),'middle'],['←',neighbourLabel(page,0,-1),4,ph/2,'start'],['→',neighbourLabel(page,0,1),pw-4,ph/2,'end']];
-        around.forEach(function(a){if(a[1])g.appendChild(svgText({x:a[2],y:a[3],'font-family':n.font,'font-size':n.size,fill:n.fill,'text-anchor':a[4]},a[0]+' '+a[1]))});
-      }
     }
     if(state.showRuler&&page.index===0){
       const y=ph-5,x=Math.max(5,m),len=100;
@@ -213,7 +255,7 @@
     svg.appendChild(svgText({x:15,y:22,'font-family':'Arial, sans-serif','font-size':6,'font-weight':700,fill:'#15232b'},'Birleştirme haritası'));
     svg.appendChild(svgText({x:15,y:30,'font-family':'Arial, sans-serif','font-size':3.2,fill:'#526670'},
       Core.formatLength(layout.W,state.unit)+' × '+Core.formatLength(layout.H,state.unit)+' '+state.unit+' · '+info.cols+' sütun × '+info.rows+' satır · '+info.totalPages+' A4 · bindirme '+info.overlap+' mm'));
-    const boxW=info.width-30,boxH=info.height-60;
+    const boxW=info.width-30,boxH=info.height-72;
     const spanW=Math.max(layout.W,(info.cols-1)*info.stepX+info.cellW),spanH=Math.max(layout.H,(info.rows-1)*info.stepY+info.cellH);
     const s=Math.min(boxW/spanW,boxH/spanH),ox=15+(boxW-spanW*s)/2,oy=40+(boxH-spanH*s)/2;
     const inner=makeFullSvg(false);inner.setAttribute('x',ox);inner.setAttribute('y',oy);inner.setAttribute('width',layout.W*s);inner.setAttribute('height',layout.H*s);svg.appendChild(inner);
@@ -224,6 +266,11 @@
       svg.appendChild(svgText({x:ox+p.x*s+fs*.4,y:oy+p.y*s+fs*1.1,'font-family':'Arial, sans-serif','font-size':fs,'font-weight':700,fill:'#c34a32','fill-opacity':.85},p.label));
     });
     svg.appendChild(g);
+    const steps=['1. Her sayfanın kırmızı ✂ çizgisini cetvelle kes; dışındaki gri şerit atılır.',
+      '2. Kesilen kenarı komşu sayfadaki mavi çizgiye oturt (sağdaki sayfa soldakinin, alttaki üsttekinin üstüne gelir).',
+      '3. Bindirme şeridindeki hedefleri ve harf çizgilerini üst üste getir, sonra bantla veya yapıştır.',
+      '4. Sıra: önce her satırı A1 → A2 → … diye birleştir, sonra satırları üstten alta birleştir.'];
+    steps.forEach(function(t,i){svg.appendChild(svgText({x:15,y:info.height-24+i*5,'font-family':'Arial, sans-serif','font-size':3,fill:'#263943'},t))});
     return svg;
   }
 
@@ -298,8 +345,8 @@
     const root=$('printRoot');root.textContent='';const p=Core.paperSize(state.orientation);
     $('dynamicPrintStyle').textContent='@page{size:'+p.width+'mm '+p.height+'mm;margin:0}.print-sheet{width:'+p.width+'mm;height:'+p.height+'mm}.print-sheet>svg{width:'+p.width+'mm;height:'+p.height+'mm}';
     if(pageInfo.tooMany||pageInfo.invalid)return;
-    function add(svg){const wrap=document.createElement('div');wrap.className='print-sheet';wrap.appendChild(svg);root.appendChild(wrap)}
-    if(state.includeMap&&state.outputMode==='tile'&&pageInfo.totalPages>1)add(makeMapSvg(pageInfo));
+    function add(svg,extra){const wrap=document.createElement('div');wrap.className='print-sheet'+(extra?' '+extra:'');wrap.appendChild(svg);root.appendChild(wrap)}
+    if(state.includeMap&&state.outputMode==='tile'&&pageInfo.totalPages>1)add(makeMapSvg(pageInfo),'print-map');
     pageInfo.pages.forEach(function(page){add(makeSheetSvg(page,pageInfo,true))});
   }
   function collectWarning(){

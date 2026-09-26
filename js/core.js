@@ -13,7 +13,7 @@
     text:'ADVANTAGE SPRING',lineMode:'single',font:'usaaf',weight:400,align:'center',
     width:600,height:120,unit:'cm',textInset:5,letterSpacing:0,lineSpacing:100,
     orientation:'portrait',outputMode:'tile',pageMargin:10,overlap:10,inkMode:'solid',
-    showLabels:true,showGuides:true,showRuler:true,showOverlap:true,includeMap:false
+    showLabels:true,showGuides:true,showRuler:true,showOverlap:true,includeMap:true
   });
 
   const LIMITS={
