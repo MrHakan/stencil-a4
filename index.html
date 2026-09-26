@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101920">
+  <meta name="description" content="Gerçek ölçekte stencil tasarla, A4 sayfalara böl, hizalama kılavuzlarıyla yazdır.">
+  <title>Stencil Maker — A4 Şablon Tasarımcısı</title>
+  <style>
+    @font-face{font-family:"Stardos Stencil";src:url("assets/StardosStencil-Regular.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
+    @font-face{font-family:"Stardos Stencil";src:url("assets/StardosStencil-Bold.ttf") format("truetype");font-style:normal;font-weight:700;font-display:swap}
+    :root{--ink:#15232b;--muted:#667781;--line:#dce4e8;--panel:#fff;--paper:#f3f6f7;--accent:#c34a32;--accent-dark:#913522;--teal:#167b78;--blue:#39749c;--shadow:0 16px 42px rgba(24,43,54,.08);--radius:16px}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .topbar{height:72px;background:#101920;color:#f5f7f8;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3vw,42px);border-bottom:1px solid #26333b;position:sticky;top:0;z-index:5}
+    .brand{display:flex;align-items:center;gap:13px;min-width:0}
+    .brand-mark{width:39px;height:39px;border:1px solid #52616a;border-radius:11px;display:grid;place-items:center;color:#f6b09c;background:linear-gradient(145deg,#27343b,#131c22);font-weight:900;font-size:19px;letter-spacing:-2px;flex:none}
+    .brand-title{font-weight:800;letter-spacing:.055em;font-size:14px;text-transform:uppercase}
+    .brand-sub{color:#9eabb1;font-size:11px;margin-top:2px;letter-spacing:.04em}
+    .top-actions{display:flex;align-items:center;gap:9px}
+    .top-note{font-size:11px;color:#b6c0c4;display:flex;align-items:center;gap:7px;margin-right:9px}
+    .top-note .dot{width:7px;height:7px;border-radius:50%;background:#6fc1a7;box-shadow:0 0 0 4px #6fc1a71c}
+    .button{border:1px solid #d4dde1;background:#fff;color:var(--ink);border-radius:9px;padding:9px 13px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.15s ease;white-space:nowrap}
+    .button:hover{transform:translateY(-1px);box-shadow:0 5px 15px #172a3617}
+    .button.primary{background:var(--accent);border-color:var(--accent);color:white}
+    .button.primary:hover{background:var(--accent-dark)}
+    .button.dark{background:#24343d;border-color:#3b4a52;color:white}
+    .button.quiet{background:#f7f9fa}
+    .button.small{padding:7px 9px;font-size:11px}
+    .button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+    .button svg{width:15px;height:15px;flex:none}
+    .app-shell{max-width:1700px;margin:0 auto;padding:20px clamp(12px,2vw,28px) 44px;display:grid;grid-template-columns:minmax(302px,370px) minmax(0,1fr);gap:20px;align-items:start}
+    .sidebar{display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 5px 20px #20364208;overflow:hidden}
+    .card-head{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;border-bottom:1px solid #edf1f3}
+    .step{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#eff3f4;color:#40535d;font-size:11px;font-weight:800;flex:none}
+    .card-title{font-size:13px;font-weight:800;letter-spacing:.015em}
+    .card-kicker{font-size:10px;color:#8a989f;margin-left:auto;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+    .card-body{padding:14px 16px 16px}
+    .field{margin-bottom:13px}
+    .field:last-child{margin-bottom:0}
+    .label-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+    label,.field-label{font-size:11px;font-weight:700;color:#354750}
+    .hint{font-size:10px;color:#829198;font-weight:500}
+    .input,.select,.textarea{width:100%;border:1px solid #d7e0e4;background:#fff;border-radius:8px;color:var(--ink);outline:none;transition:border .15s,box-shadow .15s}
+    .input,.select{height:37px;padding:0 10px}
+    .textarea{min-height:82px;resize:vertical;padding:10px;line-height:1.45}
+    .input:focus,.select:focus,.textarea:focus{border-color:#6d9caf;box-shadow:0 0 0 3px #39749c16}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .split-input{display:flex;align-items:center;border:1px solid #d7e0e4;border-radius:8px;overflow:hidden;background:#fff}
+    .split-input .input{border:0;box-shadow:none;border-radius:0;min-width:0}
+    .suffix{font-size:10px;color:#75858d;background:#f4f7f8;border-left:1px solid #e1e7e9;padding:0 9px;height:35px;display:flex;align-items:center;white-space:nowrap}
+    .segment{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid #d7e0e4;border-radius:9px;padding:3px;background:#f4f7f8;gap:3px}
+    .segment button{border:0;border-radius:6px;background:transparent;color:#6c7b83;padding:7px 6px;font-size:10px;font-weight:700}
+    .segment button.active{background:#fff;color:#1b2b33;box-shadow:0 1px 4px #15232b18}
+    .unit-line{display:grid;grid-template-columns:1fr 88px;gap:8px}
+    .font-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+    .font-status{border:1px solid #e3e9ec;background:#f7f9fa;border-radius:8px;padding:9px 10px;font-size:10px;color:#667781;display:flex;align-items:flex-start;gap:8px;margin-top:8px}
+    .font-status .status-mark{font-weight:900;color:var(--teal);font-size:13px;line-height:12px}
+    .font-status.warn{background:#fff8ed;border-color:#f0dfbf;color:#76572b}
+    .font-status.warn .status-mark{color:#bc7823}
+    .font-help{margin:8px 1px 0;font-size:10px;color:#7b8a91}
+    .font-help a{color:#43748c;text-decoration:none;border-bottom:1px solid #abc4d0}
+    .check-list{display:flex;flex-direction:column;gap:9px;margin-top:5px}
+    .check{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:#495b63;line-height:1.3}
+    .check input{accent-color:var(--teal);margin:1px 0 0;width:14px;height:14px;flex:none}
+    .note{font-size:10px;color:#71818a;line-height:1.45;margin-top:8px}
+    .preset-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+    .preset{border:1px solid #e0e7ea;background:#f8fafb;color:#52636b;border-radius:99px;padding:5px 8px;font-size:10px;font-weight:700}
+    .preset:hover{border-color:#a9bbc3;color:#22353e}
+    .workspace{min-width:0;display:flex;flex-direction:column;gap:14px}
+    .summary-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 20px #20364208;overflow:hidden}
+    .metric{padding:12px 15px;border-right:1px solid #edf1f3;min-width:0}
+    .metric:last-child{border-right:0}
+    .metric-label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8a989f;font-weight:800;white-space:nowrap}
+    .metric-value{font-size:17px;font-weight:800;letter-spacing:-.035em;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .metric-value small{font-size:11px;letter-spacing:0;color:#829198;font-weight:700}
+    .metric-value.accent{color:var(--accent)}
+    .preview-card{background:#e6ecef;border:1px solid #d8e0e4;border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+    .preview-head{padding:14px 17px;background:#fff;border-bottom:1px solid #dce4e8;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .preview-name{display:flex;align-items:center;gap:10px}
+    .preview-name strong{font-size:13px}
+    .preview-name span{font-size:10px;color:#829198}
+    .preview-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .preview-toggle{display:flex;padding:3px;background:#f0f4f5;border:1px solid #e1e7e9;border-radius:8px;gap:2px}
+    .preview-toggle button{border:0;background:transparent;color:#75848b;font-size:10px;font-weight:700;padding:6px 8px;border-radius:5px}
+    .preview-toggle button.active{background:#fff;color:#24353d;box-shadow:0 1px 3px #15232b15}
+    .icon-btn{height:29px;min-width:30px;border:1px solid #dce4e8;border-radius:7px;background:#fff;color:#50616a;font-weight:800;padding:0 7px}
+    .preview-stage{padding:clamp(16px,3vw,34px);min-height:360px;display:flex;align-items:center;justify-content:center;overflow:auto;background-color:#e8eef0;background-image:radial-gradient(#bcc8cd 1px,transparent 1px);background-size:16px 16px}
+    .sheet-wrap{position:relative;background:#fff;box-shadow:0 14px 35px rgba(25,42,52,.2);flex:none;max-width:100%;}
+    .sheet-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+    .full-wrap{width:min(100%,1080px);background:#fff;box-shadow:0 14px 35px rgba(25,42,52,.2);flex:none}
+    .full-wrap svg{display:block;width:100%;height:auto}
+    .preview-empty{padding:28px;color:#829198;font-size:12px;text-align:center}
+    .preview-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 15px;background:#fff;border-top:1px solid #dce4e8;font-size:10px;color:#75848b}
+    .legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .legend-item{display:flex;align-items:center;gap:6px}
+    .legend-line{width:17px;border-top:1px dashed #5f91aa}
+    .legend-outline{width:12px;height:12px;border:1px solid #1e3038;background:#fff}
+    .pages-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .pages-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #edf1f3}
+    .pages-head strong{font-size:12px}
+    .pages-head span{font-size:10px;color:#819097}
+    .thumb-list{display:flex;gap:10px;padding:13px;overflow:auto;align-items:flex-start;min-height:150px}
+    .thumb{width:92px;flex:none;border:1px solid #dce4e8;border-radius:8px;padding:5px;background:#f7f9fa;text-align:left;color:var(--ink);transition:.15s}
+    .thumb:hover{border-color:#9cb4bf;transform:translateY(-1px)}
+    .thumb.active{border:2px solid var(--accent);padding:4px;background:#fff8f5}
+    .thumb svg{display:block;width:100%;height:auto;background:white;box-shadow:0 2px 5px #1b303615}
+    .thumb-name{display:flex;justify-content:space-between;align-items:center;font-size:9px;font-weight:800;padding:5px 1px 0;color:#43565f}
+    .thumb-empty{padding:27px 10px;color:#8b999f;font-size:11px}
+    .warning{display:none;border:1px solid #f0d2c8;background:#fff5f1;color:#8e3828;border-radius:10px;padding:10px 12px;font-size:11px;line-height:1.4}
+    .warning.show{display:block}
+    .footer-note{font-size:10px;color:#87949a;text-align:center;padding:2px 8px 0}
+    .kbd{font:10px ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid #d9e1e4;border-radius:4px;padding:2px 4px;color:#718189;background:#f8fafb}
+    #fontFile{display:none}
+    #printRoot{display:none}
+    @media(max-width:1050px){.app-shell{grid-template-columns:minmax(280px,330px) minmax(0,1fr);gap:13px}.metric{padding:10px}.metric-value{font-size:15px}}
+    @media(max-width:790px){.app-shell{grid-template-columns:1fr;padding:13px}.sidebar{display:grid;grid-template-columns:1fr 1fr;align-items:start}.sidebar .card:nth-child(3),.sidebar .card:nth-child(4){grid-column:span 1}.workspace{order:-1}.summary-strip{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid #edf1f3}.top-note{display:none}}
+    @media(max-width:540px){.topbar{height:62px;padding:0 12px}.brand-title{font-size:12px}.brand-sub{font-size:9px}.brand-mark{width:34px;height:34px}.top-actions .button{padding:8px 9px}.app-shell{padding:9px;gap:11px}.sidebar{display:flex}.preview-stage{min-height:260px;padding:13px}.preview-head{padding:11px}.preview-caption{align-items:flex-start;flex-direction:column}.metric{padding:9px 10px}.metric-value{font-size:14px}.metric-label{font-size:8px}}
+    @media print{
+      @page{size:210mm 297mm;margin:0}
+      html,body{margin:0!important;padding:0!important;width:auto!important;height:auto!important;background:#fff!important}
+      body>*{display:none!important}
+      #printRoot{display:block!important;margin:0!important;padding:0!important}
+      .print-sheet{display:block;width:210mm;height:297mm;margin:0;padding:0;overflow:hidden;break-after:page;page-break-after:always;background:#fff}
+      .print-sheet:last-child{break-after:auto;page-break-after:auto}
+      .print-sheet svg{display:block;width:210mm;height:297mm}
+    }
+  </style>
+  <style id="dynamicPrintStyle"></style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">S/</div>
+      <div><div class="brand-title">Stencil Maker</div><div class="brand-sub">A4 gerçek ölçekte şablon hazırlayıcı</div></div>
+    </div>
+    <div class="top-actions">
+      <div class="top-note"><span class="dot"></span><span id="saveStatus">Otomatik kaydediliyor</span></div>
+      <button class="button dark" id="exportSvgBtn" type="button" title="Taslağı gerçek ölçekte SVG indir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>SVG indir
+      </button>
+      <button class="button primary" id="printBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8V3h10v5M6 17H4V9h16v8h-2M7 14h10v7H7z"/><path d="M17 11h.01"/></svg>Yazdır / PDF
+      </button>
+    </div>
+  </header>
+
+  <main class="app-shell" id="appRoot">
+    <aside class="sidebar">
+      <section class="card">
+        <div class="card-head"><span class="step">01</span><div class="card-title">Yazı ve stencil fontu</div><span class="card-kicker">İçerik</span></div>
+        <div class="card-body">
+          <div class="field">
+            <div class="label-row"><label for="textInput">Şablon metni</label><span class="hint" id="lineCount">1 satır</span></div>
+            <textarea class="textarea" id="textInput" spellcheck="false" placeholder="Örn. ADVANTAGE SPRING">ADVANTAGE SPRING</textarea>
+          </div>
+          <div class="field">
+            <div class="label-row"><span class="field-label">Satır düzeni</span></div>
+            <div class="segment" id="lineModeSeg"><button type="button" data-value="single" class="active">Tek satır</button><button type="button" data-value="multi">Çok satır</button></div>
+          </div>
+          <div class="field">
+            <div class="label-row"><label for="fontSelect">Stencil yazı karakteri</label><span class="hint">Stencil only</span></div>
+            <div class="font-row">
+              <select class="select" id="fontSelect">
+                <option value="usaaf">USAAF Stencil</option>
+                <option value="stardos">Stardos Stencil</option>
+                <option value="custom" disabled>Yüklenen stencil</option>
+              </select>
+              <button class="button small quiet" id="fontUploadBtn" type="button">Font yükle</button>
+              <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
+            </div>
+            <div class="font-status" id="fontStatus"><span class="status-mark">✓</span><span>Font kontrol ediliyor…</span></div>
+            <p class="font-help">USAAF fontunu <a href="https://www.dafont.com/usaaf-stencil.font" target="_blank" rel="noopener">buradan</a> indirip yükleyebilirsin. Bilgisayarda yüklüyse otomatik algılanır.</p>
+          </div>
+          <div class="two-col">
+            <div class="field"><div class="label-row"><label for="weightSelect">Kalınlık</label></div><select class="select" id="weightSelect"><option value="400">Normal</option><option value="700">Kalın</option></select></div>
+            <div class="field"><div class="label-row"><label for="alignSelect">Hizalama</label></div><select class="select" id="alignSelect"><option value="center">Ortala</option><option value="left">Sola yasla</option><option value="right">Sağa yasla</option></select></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><span class="step">02</span><div class="card-title">Gerçek tasarım ölçüsü</div><span class="card-kicker">1:1</span></div>
+        <div class="card-body">
+          <div class="unit-line field">
+            <div class="two-col">
+              <div><div class="label-row"><label for="widthInput">Genişlik</label></div><div class="split-input"><input class="input" id="widthInput" type="number" min="1" max="100000" step="1"><span class="suffix unitSuffix">mm</span></div></div>
+              <div><div class="label-row"><label for="heightInput">Yükseklik</label></div><div class="split-input"><input class="input" id="heightInput" type="number" min="1" max="100000" step="1"><span class="suffix unitSuffix">mm</span></div></div>
+            </div>
+            <div><div class="label-row"><label for="unitSelect">Birim</label></div><select class="select" id="unitSelect"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="in">inç</option></select></div>
+          </div>
+          <div class="two-col">
+            <div class="field"><div class="label-row"><label for="textInset">Yazı iç payı</label><span class="hint">tasarım kenarı</span></div><div class="split-input"><input class="input" id="textInset" type="number" min="0" max="500" step="1"><span class="suffix">mm</span></div></div>
+            <div class="field"><div class="label-row"><label for="letterSpacing">Harf aralığı</label></div><div class="split-input"><input class="input" id="letterSpacing" type="number" min="-5" max="20" step="0.5"><span class="suffix">mm</span></div></div>
+          </div>
+          <div class="field"><div class="label-row"><label for="lineSpacing">Satır aralığı</label><span class="hint" id="lineSpacingValue">100%</span></div><input class="input" id="lineSpacing" type="range" min="80" max="150" step="1" value="100" style="padding:0 3px;accent-color:var(--teal)"></div>
+          <div class="preset-row"><button class="preset" type="button" data-size="300,60">30 × 6 cm</button><button class="preset" type="button" data-size="600,120">60 × 12 cm</button><button class="preset" type="button" data-size="1000,200">100 × 20 cm</button><button class="preset" type="button" data-size="1000,300">100 × 30 cm</button></div>
+          <p class="note">Bu ölçü, çıktının tamamının dış ölçüsüdür. Font bu alanın içine oranı bozulmadan sığdırılır; baskıda ölçek otomatik küçültülmez.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><span class="step">03</span><div class="card-title">A4 döşeme ve paylar</div><span class="card-kicker">Kağıt</span></div>
+        <div class="card-body">
+          <div class="two-col field">
+            <div><div class="label-row"><label for="orientation">A4 yönü</label></div><select class="select" id="orientation"><option value="portrait">Dikey · 210 × 297 mm</option><option value="landscape">Yatay · 297 × 210 mm</option></select></div>
+            <div><div class="label-row"><label for="outputMode">Sayfa düzeni</label></div><select class="select" id="outputMode"><option value="tile">Gerekli A4'lere böl</option><option value="single">Tek A4 sayfası</option></select></div>
+          </div>
+          <div class="two-col field">
+            <div><div class="label-row"><label for="pageMargin">Güvenli kenar payı</label></div><div class="split-input"><input class="input" id="pageMargin" type="number" min="0" max="50" step="1"><span class="suffix">mm</span></div></div>
+            <div><div class="label-row"><label for="overlap">Birleşim bindirmesi</label></div><div class="split-input"><input class="input" id="overlap" type="number" min="0" max="100" step="1"><span class="suffix">mm</span></div></div>
+          </div>
+          <div class="field">
+            <div class="label-row"><span class="field-label">Görünüm</span></div>
+            <div class="segment" id="inkModeSeg"><button type="button" data-value="solid" class="active">Dolu stencil</button><button type="button" data-value="outline">İçi boş kontur</button></div>
+          </div>
+          <div class="check-list">
+            <label class="check"><input id="showLabels" type="checkbox" checked><span>Sayfa kodları (A1, A2, B1…)</span></label>
+            <label class="check"><input id="showGuides" type="checkbox" checked><span>Hizalama ve kesim kılavuzları</span></label>
+            <label class="check"><input id="showRuler" type="checkbox" checked><span>İlk sayfaya 100 mm kontrol çizgisi</span></label>
+          </div>
+          <p class="note">Bindirme, komşu sayfalardaki taslağın birleştirme payıdır. Sayfa kenar boşluğu yalnızca baskı kılavuzlarını ve içeriğin güvenli alanını belirler.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><span class="step">04</span><div class="card-title">Çıktı ve kontrol</div><span class="card-kicker">Baskı</span></div>
+        <div class="card-body">
+          <div class="warning" id="warningBox"></div>
+          <div class="two-col">
+            <button class="button primary" id="printBtnSide" type="button">Yazdır / PDF kaydet</button>
+            <button class="button" id="resetBtn" type="button">Taslağı sıfırla</button>
+          </div>
+          <p class="note">Yazdır penceresinde A4, kenar boşluğu <b>Yok</b> ve ölçek <b>%100 / Gerçek boyut</b> seç. Tarayıcı üstbilgi ve altbilgilerini kapat. İlk sayfadaki 100 mm çizgiyi cetvelle ölçerek ölçeği doğrula.</p>
+        </div>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="summary-strip">
+        <div class="metric"><div class="metric-label">Tasarım dış ölçüsü</div><div class="metric-value" id="metricSize">—</div></div>
+        <div class="metric"><div class="metric-label">A4 sayfa</div><div class="metric-value accent" id="metricPages">—</div></div>
+        <div class="metric"><div class="metric-label">Döşeme</div><div class="metric-value" id="metricGrid">—</div></div>
+        <div class="metric"><div class="metric-label">Baskı ölçeği</div><div class="metric-value">1:1 <small>gerçek boyut</small></div></div>
+      </div>
+
+      <section class="preview-card">
+        <div class="preview-head">
+          <div class="preview-name"><strong>Canlı önizleme</strong><span id="previewSub">Tüm yerleşim</span></div>
+          <div class="preview-tools">
+            <div class="preview-toggle" id="previewMode"><button class="active" type="button" data-value="full">Tüm yerleşim</button><button type="button" data-value="page">Seçili A4</button></div>
+            <button class="icon-btn" type="button" id="zoomOut" aria-label="Önizlemeyi küçült">−</button><button class="icon-btn" type="button" id="zoomFit" aria-label="Önizlemeyi sığdır">Sığdır</button><button class="icon-btn" type="button" id="zoomIn" aria-label="Önizlemeyi büyüt">+</button>
+          </div>
+        </div>
+        <div class="preview-stage" id="previewStage"><div class="preview-empty">Önizleme hazırlanıyor…</div></div>
+        <div class="preview-caption">
+          <div class="legend"><span class="legend-item"><i class="legend-line"></i>A4 döşeme sınırı</span><span class="legend-item"><i class="legend-outline"></i>Kesim alanı</span><span id="scaleCaption">Ekran önizlemesi ölçekli gösterilir; baskı 1:1 kalır.</span></div>
+          <span id="selectedPageCaption">Sayfa A1</span>
+        </div>
+      </section>
+
+      <section class="pages-card">
+        <div class="pages-head"><strong>A4 sayfaları</strong><span id="pageListCaption">Sayfaya tıklayarak önizlemeyi seç</span></div>
+        <div class="thumb-list" id="thumbList"><div class="thumb-empty">Sayfa önizlemeleri hazırlanıyor…</div></div>
+      </section>
+      <div class="footer-note">Kontur görünümü görsel bir çıktı stilidir; kesilecek stencil köprüleri seçilen stencil fontunun kendi çiziminden gelir.</div>
+    </section>
+  </main>
+
+  <div id="printRoot" aria-hidden="true"></div>
+
+  <script>
+  (function(){
+    'use strict';
+    const $=function(id){return document.getElementById(id)};
+    const MM_PER={mm:1,cm:10,in:25.4};
+    const DEFAULTS={text:'ADVANTAGE SPRING',lineMode:'single',font:'usaaf',weight:400,align:'center',width:600,height:120,unit:'cm',textInset:5,letterSpacing:0,lineSpacing:100,orientation:'portrait',outputMode:'tile',pageMargin:10,overlap:10,inkMode:'solid',showLabels:true,showGuides:true,showRuler:true};
+    let state=Object.assign({},DEFAULTS);
+    let importedBlob=null;
+    let importedName='';
+    let importedUrl='';
+    let pageInfo={width:210,height:297,cellW:190,cellH:277,stepX:180,stepY:267,cols:1,rows:1,pages:[]};
+    let selectedPage=0;
+    let previewMode='full';
+    let zoom=1;
+    let renderTimer=null;
+    let dbPromise=null;
+    let localUsaafFamily='';
+    const SVG='http://www.w3.org/2000/svg';
+
+    function openDB(){
+      if(!('indexedDB' in window)) return Promise.resolve(null);
+      if(dbPromise) return dbPromise;
+      dbPromise=new Promise(function(resolve){
+        const req=indexedDB.open('stencil-maker-v1',1);
+        req.onupgradeneeded=function(){const d=req.result;if(!d.objectStoreNames.contains('font'))d.createObjectStore('font');};
+        req.onsuccess=function(){resolve(req.result)};
+        req.onerror=function(){resolve(null)};
+      });
+      return dbPromise;
+    }
+    async function dbPut(key,value){const db=await openDB();if(!db)return false;return new Promise(function(resolve){try{const tx=db.transaction('font','readwrite');tx.objectStore('font').put(value,key);tx.oncomplete=function(){resolve(true)};tx.onerror=function(){resolve(false)}}catch(e){resolve(false)}})}
+    async function dbGet(key){const db=await openDB();if(!db)return null;return new Promise(function(resolve){try{const req=db.transaction('font','readonly').objectStore('font').get(key);req.onsuccess=function(){resolve(req.result||null)};req.onerror=function(){resolve(null)}}catch(e){resolve(null)}})}
+    function saveState(){
+      try{localStorage.setItem('stencil-maker-project',JSON.stringify(state));$('saveStatus').textContent='Taslak kaydedildi'}catch(e){$('saveStatus').textContent='Bu tarayıcıda kayıt yapılamadı'}
+    }
+    function loadState(){
+      try{const saved=JSON.parse(localStorage.getItem('stencil-maker-project')||'null');if(saved&&typeof saved==='object')state=Object.assign({},DEFAULTS,saved)}catch(e){}
+    }
+    function setInput(id,value){$(id).value=value}
+    function syncControls(){
+      setInput('textInput',state.text);setInput('fontSelect',state.font);setInput('weightSelect',String(state.weight));setInput('alignSelect',state.align);
+      setInput('unitSelect',state.unit);setInput('widthInput',round(state.width/MM_PER[state.unit],2));setInput('heightInput',round(state.height/MM_PER[state.unit],2));
+      document.querySelectorAll('.unitSuffix').forEach(function(x){x.textContent=state.unit});
+      setInput('textInset',state.textInset);setInput('letterSpacing',state.letterSpacing);setInput('lineSpacing',state.lineSpacing);$('lineSpacingValue').textContent=state.lineSpacing+'%';
+      setInput('orientation',state.orientation);setInput('outputMode',state.outputMode);setInput('pageMargin',state.pageMargin);setInput('overlap',state.overlap);
+      $('showLabels').checked=state.showLabels;$('showGuides').checked=state.showGuides;$('showRuler').checked=state.showRuler;
+      setSegment('lineModeSeg',state.lineMode);setSegment('inkModeSeg',state.inkMode);
+    }
+    function setSegment(id,value){$(id).querySelectorAll('button').forEach(function(b){b.classList.toggle('active',b.dataset.value===value)})}
+    function round(n,places){const p=Math.pow(10,places||0);return Math.round(Number(n)*p)/p}
+    function esc(s){return String(s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'})[c]})}
+    function svgNode(name,attrs){const n=document.createElementNS(SVG,name);if(attrs)Object.keys(attrs).forEach(function(k){n.setAttribute(k,String(attrs[k]))});return n}
+    function setText(node,text){node.appendChild(document.createTextNode(String(text)))}
+    function paper(){return state.orientation==='landscape'?{width:297,height:210}:{width:210,height:297}}
+    function rowName(index){let n=index+1,s='';while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26)}return s}
+    function pageName(row,col){return rowName(row)+(col+1)}
+    function appFont(){
+      if(state.font==='custom'&&importedBlob)return 'ImportedStencil';
+      if(state.font==='usaaf'&&importedBlob)return 'ImportedStencil';
+      if(state.font==='usaaf'&&localUsaafFamily)return localUsaafFamily;
+      return 'Stardos Stencil';
+    }
+    function cssFontFamily(){return '"'+appFont()+'"'}
+    function fontWeight(){return state.font==='stardos'?Number(state.weight):400}
+    function getLines(){
+      const raw=String(state.text||'');
+      if(state.lineMode==='single')return [raw.replace(/[\r\n]+/g,' ').trim()];
+      return raw.replace(/\r/g,'').split('\n');
+    }
+    function measureLayout(){
+      const W=Math.max(1,Number(state.width)||1),H=Math.max(1,Number(state.height)||1),inset=Math.max(0,Number(state.textInset)||0);
+      const innerW=Math.max(1,W-2*inset),innerH=Math.max(1,H-2*inset),lines=getLines();
+      const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+      ctx.font=fontWeight()+' 1000px '+cssFontFamily();
+      const ref=ctx.measureText('Ag');
+      const ascent=(ref.actualBoundingBoxAscent||720)/1000,descent=(ref.actualBoundingBoxDescent||220)/1000;
+      const inkRatio=Math.max(.45,ascent+descent),track=Number(state.letterSpacing)||0,spacing=Number(state.lineSpacing||100)/100;
+      const widths=lines.map(function(line){const metric=ctx.measureText(line||' ');return Math.max(0,metric.width/1000+Math.max(0,line.length-1)*track/1000)});
+      const chars=Math.max(1,...lines.map(function(x){return x.length}));
+      const maxWidth=Math.max(1,...widths);
+      const widthFont=(innerW-Math.max(0,chars-1)*Math.max(0,track))/maxWidth;
+      const lineCount=Math.max(1,lines.length),heightRatio=inkRatio*(1+(lineCount-1)*spacing);
+      const fontSize=Math.max(.1,Math.min(widthFont,innerH/heightRatio));
+      const inkHeight=fontSize*inkRatio,pitch=inkHeight*spacing,totalH=inkHeight+(lineCount-1)*pitch;
+      const top=(H-totalH)/2,baselines=lines.map(function(_,i){return top+ascent*fontSize+i*pitch});
+      return{W:W,H:H,lines:lines,widths:widths,fontSize:fontSize,ascent:ascent,descent:descent,baselines:baselines,inkHeight:inkHeight,track:track,innerW:innerW,innerH:innerH,empty:!String(state.text||'').trim()};
+    }
+    function drawArtwork(parent,layout){
+      if(layout.empty)return;
+      const group=svgNode('g',{'aria-label':'Stencil artwork'});
+      const fill=state.inkMode==='solid'?'#111820':'none';
+      const stroke=state.inkMode==='outline'?'#111820':'none';
+      layout.lines.forEach(function(line,i){
+        if(!line)return;
+        let anchor='middle',x=layout.W/2;
+        if(state.align==='left'){anchor='start';x=Math.max(0,Number(state.textInset)||0)}
+        if(state.align==='right'){anchor='end';x=layout.W-Math.max(0,Number(state.textInset)||0)}
+        const t=svgNode('text',{x:x,y:layout.baselines[i],fill:fill,stroke:stroke,'stroke-width':state.inkMode==='outline'?0.42:0,'stroke-linejoin':'round','paint-order':'stroke','font-family':cssFontFamily(),'font-size':layout.fontSize,'font-weight':fontWeight(),'text-anchor':anchor,'letter-spacing':layout.track,'font-kerning':'normal'});
+        setText(t,line);group.appendChild(t);
+      });
+      parent.appendChild(group);
+    }
+    function addCross(parent,x,y,size,color){
+      parent.appendChild(svgNode('path',{d:'M '+(x-size)+' '+y+' H '+(x+size)+' M '+x+' '+(y-size)+' V '+(y+size),fill:'none',stroke:color||'#30444e','stroke-width':.32}));
+    }
+    function drawSheetGuides(svg,page,info,includeLabel){
+      const g=svgNode('g',{'aria-label':'Print guides'}),m=Number(state.pageMargin)||0,pw=info.width,ph=info.height;
+      if(state.showGuides){
+        g.appendChild(svgNode('rect',{x:m,y:m,width:Math.max(0,pw-2*m),height:Math.max(0,ph-2*m),fill:'none',stroke:'#7899a8','stroke-width':.25,'stroke-dasharray':'2 1.5'}));
+        [[5,5],[pw-5,5],[5,ph-5],[pw-5,ph-5]].forEach(function(p){addCross(g,p[0],p[1],1.3,'#334d58')});
+        g.appendChild(svgNode('path',{d:'M '+m+' '+(m-1.7)+' v 3.4 M '+(pw-m)+' '+(m-1.7)+' v 3.4 M '+(m-1.7)+' '+m+' h 3.4 M '+(m-1.7)+' '+(ph-m)+' h 3.4',fill:'none',stroke:'#405d69','stroke-width':.3}));
+      }
+      if(includeLabel&&state.showLabels){
+        const label=svgNode('text',{x:5,y:8,'font-family':'Arial, sans-serif','font-size':3.1,'font-weight':700,fill:'#263943','letter-spacing':.15});setText(label,page.label);g.appendChild(label);
+      }
+      if(includeLabel&&state.showRuler&&page.row===0&&page.col===0){
+        const y=ph-5,x=Number(state.pageMargin)||0,len=100;
+        g.appendChild(svgNode('path',{d:'M '+x+' '+y+' h '+len+' M '+x+' '+(y-1.5)+' v 3 M '+(x+len)+' '+(y-1.5)+' v 3',fill:'none',stroke:'#263943','stroke-width':.38}));
+        const label=svgNode('text',{x:x+len+3,y:y+1,'font-family':'Arial, sans-serif','font-size':2.6,fill:'#435963'});setText(label,'100 mm');g.appendChild(label);
+      }
+      svg.appendChild(g);
+    }
+    function makeSheetSvg(page,info,printable){
+      const svg=svgNode('svg',{xmlns:SVG,viewBox:'0 0 '+info.width+' '+info.height,role:'img','aria-label':'A4 sayfa '+page.label});
+      svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+      svg.appendChild(svgNode('rect',{x:0,y:0,width:info.width,height:info.height,fill:'#fff'}));
+      const defs=svgNode('defs'),clip=svgNode('clipPath',{id:'clip-'+page.index});clip.appendChild(svgNode('rect',{x:state.pageMargin,y:state.pageMargin,width:info.cellW,height:info.cellH}));defs.appendChild(clip);svg.appendChild(defs);
+      const transform=svgNode('g',{transform:'translate('+(state.pageMargin-page.x)+' '+(state.pageMargin-page.y)+')','clip-path':'url(#clip-'+page.index+')'});
+      drawArtwork(transform,measureLayout());svg.appendChild(transform);
+      drawSheetGuides(svg,page,info,true);
+      if(printable){svg.setAttribute('width',info.width+'mm');svg.setAttribute('height',info.height+'mm')}
+      return svg;
+    }
+    function makeFullSvg(info){
+      const W=Number(state.width)||1,H=Number(state.height)||1;
+      const svg=svgNode('svg',{xmlns:SVG,viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'Tam stencil yerleşimi'});
+      svg.appendChild(svgNode('rect',{x:0,y:0,width:W,height:H,fill:'#fff'}));
+      const defs=svgNode('defs'),clip=svgNode('clipPath',{id:'fullclip'});clip.appendChild(svgNode('rect',{x:0,y:0,width:W,height:H}));defs.appendChild(clip);svg.appendChild(defs);
+      const art=svgNode('g',{'clip-path':'url(#fullclip)'});drawArtwork(art,measureLayout());svg.appendChild(art);
+      if(state.showGuides&&state.outputMode==='tile'){
+        const guide=svgNode('g',{fill:'none',stroke:'#4382a1','stroke-width':Math.max(.18,Math.min(W,H)/900),'stroke-dasharray':Math.max(1,Math.min(W,H)/75)+' '+Math.max(1,Math.min(W,H)/105)});
+        pageInfo.pages.forEach(function(p){guide.appendChild(svgNode('rect',{x:p.x,y:p.y,width:pageInfo.cellW,height:pageInfo.cellH}))});svg.appendChild(guide);
+        if(state.showLabels){const labs=svgNode('g',{fill:'#35718f','font-family':'Arial, sans-serif','font-size':Math.max(4,Math.min(W,H)/27),'font-weight':700});pageInfo.pages.forEach(function(p){const t=svgNode('text',{x:p.x+Math.max(2,Math.min(W,H)/55),y:p.y+Math.max(5,Math.min(W,H)/22)});setText(t,p.label);labs.appendChild(t)});svg.appendChild(labs)}
+      }
+      svg.appendChild(svgNode('rect',{x:.2,y:.2,width:Math.max(0,W-.4),height:Math.max(0,H-.4),fill:'none',stroke:'#334650','stroke-width':Math.max(.25,Math.min(W,H)/600)}));
+      return svg;
+    }
+    function calculatePages(){
+      const p=paper(),m=Math.max(0,Number(state.pageMargin)||0),cellW=p.width-2*m,cellH=p.height-2*m;
+      const overlap=Math.max(0,Number(state.overlap)||0),stepX=Math.max(1,cellW-overlap),stepY=Math.max(1,cellH-overlap),W=Number(state.width)||1,H=Number(state.height)||1;
+      const cols=state.outputMode==='single'?1:Math.max(1,Math.ceil(Math.max(0,W-cellW)/stepX)+1),rows=state.outputMode==='single'?1:Math.max(1,Math.ceil(Math.max(0,H-cellH)/stepY)+1);
+      const pages=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pages.push({index:pages.length,row:r,col:c,x:c*stepX,y:r*stepY,label:pageName(r,c)});
+      return{width:p.width,height:p.height,cellW:cellW,cellH:cellH,stepX:stepX,stepY:stepY,cols:cols,rows:rows,pages:pages};
+    }
+    function showWarning(message){const el=$('warningBox');el.textContent=message||'';el.classList.toggle('show',!!message)}
+    function updateFontStatus(){
+      const el=$('fontStatus');let message='',warn=false;
+      if(state.font==='stardos')message='Stardos Stencil hazır. Font uygulamanın içinde gelir ve baskıda gömülü kullanılır.';
+      else if(importedBlob){message=(state.font==='usaaf'?'USAAF / ':'')+'yüklenen font hazır: '+(importedName||'stencil font');}
+      else if(localUsaafFamily)message='USAAF Stencil bilgisayarında bulundu: '+localUsaafFamily+'. Baskı öncesi fontun yüklenmesini bekle.';
+      else{message='USAAF Stencil bu tarayıcıda bulunamadı. Önizleme için Stardos Stencil kullanılıyor; .ttf/.otf dosyasını yükleyince gerçek font uygulanır.';warn=true}
+      el.classList.toggle('warn',warn);el.innerHTML='<span class="status-mark">'+(warn?'!':'✓')+'</span><span>'+message+'</span>';
+      const customOption=$('fontSelect').querySelector('option[value="custom"]');customOption.disabled=!importedBlob;
+    }
+    function renderThumbs(){
+      const list=$('thumbList');list.innerHTML='';
+      if(pageInfo.pages.length>240){list.innerHTML='<div class="thumb-empty">Önizleme performansı için sayfa listesi gizlendi ('+pageInfo.pages.length+' sayfa). Toplam sayfa sayısı üstte görünür.</div>';return}
+      pageInfo.pages.forEach(function(p){
+        const button=document.createElement('button');button.type='button';button.className='thumb'+(selectedPage===p.index?' active':'');button.setAttribute('aria-label','Sayfa '+p.label+' önizlemesi');
+        button.appendChild(makeSheetSvg(p,pageInfo,false));const name=document.createElement('div');name.className='thumb-name';name.innerHTML='<span>'+p.label+'</span><span>'+(p.index+1)+'/'+pageInfo.pages.length+'</span>';button.appendChild(name);
+        button.addEventListener('click',function(){selectedPage=p.index;previewMode='page';syncPreviewToggle();renderPreview();renderThumbs()});list.appendChild(button);
+      });
+    }
+    function syncPreviewToggle(){document.querySelectorAll('#previewMode button').forEach(function(b){b.classList.toggle('active',b.dataset.value===previewMode)})}
+    function renderPreview(){
+      const stage=$('previewStage');stage.innerHTML='';
+      const selected=pageInfo.pages[Math.min(selectedPage,pageInfo.pages.length-1)]||pageInfo.pages[0];
+      if(previewMode==='page'&&selected){
+        const wrap=document.createElement('div');wrap.className='sheet-wrap';wrap.style.width='min('+Math.round(pageInfo.width*0.85*zoom)+'px, 100%)';wrap.appendChild(makeSheetSvg(selected,pageInfo,false));stage.appendChild(wrap);
+        $('previewSub').textContent='Seçili A4 · '+selected.label;$('selectedPageCaption').textContent='Sayfa '+selected.label+' · '+(selected.index+1)+' / '+pageInfo.pages.length;
+      }else{
+        const wrap=document.createElement('div');wrap.className='full-wrap';wrap.style.width='min('+Math.round(Math.min(1080,Math.max(430,Number(state.width)*1.15))*zoom)+'px, 100%)';wrap.appendChild(makeFullSvg(pageInfo));stage.appendChild(wrap);
+        $('previewSub').textContent=pageInfo.cols+' × '+pageInfo.rows+' A4 · tam yerleşim';$('selectedPageCaption').textContent='İlk sayfa '+(selected?selected.label:'A1')+' · '+pageInfo.pages.length+' sayfa';
+      }
+    }
+    function renderPrint(){
+      const root=$('printRoot');root.innerHTML='';const p=paper();
+      $('dynamicPrintStyle').textContent='@page{size:'+p.width+'mm '+p.height+'mm;margin:0}.print-sheet{width:'+p.width+'mm;height:'+p.height+'mm}.print-sheet svg{width:'+p.width+'mm;height:'+p.height+'mm}';
+      const limit=Math.min(pageInfo.pages.length,240);
+      for(let i=0;i<limit;i++){
+        const page=pageInfo.pages[i],wrap=document.createElement('div');wrap.className='print-sheet';wrap.appendChild(makeSheetSvg(page,pageInfo,true));root.appendChild(wrap);
+      }
+    }
+    function render(){
+      clearTimeout(renderTimer);renderTimer=setTimeout(async function(){
+        try{await document.fonts.ready}catch(e){}
+        pageInfo=calculatePages();selectedPage=Math.min(selectedPage,pageInfo.pages.length-1);
+        const p=paper(),m=Number(state.pageMargin)||0,tooLargeSingle=state.outputMode==='single'&&(Number(state.width)>pageInfo.cellW||Number(state.height)>pageInfo.cellH),invalid=pageInfo.cellW<=0||pageInfo.cellH<=0||Number(state.overlap)>=Math.min(pageInfo.cellW,pageInfo.cellH);
+        let warning='';if(invalid)warning='Kenar payı veya bindirme A4 iç alanına göre çok büyük. A4 sayfa kenar payını azalt veya bindirmeyi küçült.';
+        else if(tooLargeSingle)warning='Tasarım seçilen güvenli alan içinde tek A4’e sığmıyor. Gerçek ölçeği korumak için ölçüyü küçült veya “Gerekli A4’lere böl” seç.';
+        else if(pageInfo.pages.length>240)warning='Bu ölçü '+pageInfo.pages.length+' sayfa oluşturuyor. Önizleme ve baskı güvenliği için tek seferde en fazla 240 sayfa desteklenir; ölçüyü küçült veya bindirme/pay değerlerini değiştir.';
+        showWarning(warning);
+        $('printBtn').disabled=!!warning;$('printBtnSide').disabled=!!warning;
+        $('metricSize').textContent=round(Number(state.width)/10,1)+' × '+round(Number(state.height)/10,1)+' <small>cm</small>';
+        $('metricPages').textContent=pageInfo.pages.length+' <small>A4</small>';
+        $('metricGrid').textContent=pageInfo.cols+' sütun × '+pageInfo.rows+' satır';
+        $('lineCount').textContent=getLines().length+' satır';
+        $('pageListCaption').textContent=pageInfo.pages.length+' sayfa · A1’den başlayarak kodlanır';
+        $('lineSpacingValue').textContent=state.lineSpacing+'%';
+        updateFontStatus();renderPreview();renderThumbs();renderPrint();
+        saveState();
+      },35);
+    }
+    function scheduleRender(){render()}
+    function bindInput(id,key,convert){
+      $(id).addEventListener('input',function(){let value=$(id).value;if(convert)value=convert(value);else if($(id).type==='number'||$(id).type==='range')value=Number(value);state[key]=value;scheduleRender()});
+      $(id).addEventListener('change',function(){let value=$(id).value;if(convert)value=convert(value);else if($(id).type==='number'||$(id).type==='range')value=Number(value);state[key]=value;scheduleRender()});
+    }
+    function bindSegment(id,key){$(id).addEventListener('click',function(e){const b=e.target.closest('button[data-value]');if(!b)return;state[key]=b.dataset.value;setSegment(id,state[key]);scheduleRender()})}
+    function bindEvents(){
+      bindInput('textInput','text');bindInput('weightSelect','weight',Number);bindInput('alignSelect','align');bindInput('textInset','textInset',Number);bindInput('letterSpacing','letterSpacing',Number);bindInput('lineSpacing','lineSpacing',Number);
+      bindInput('orientation','orientation');bindInput('outputMode','outputMode');bindInput('pageMargin','pageMargin',Number);bindInput('overlap','overlap',Number);
+      $('unitSelect').addEventListener('change',function(){state.unit=this.value;syncControls();scheduleRender()});
+      $('widthInput').addEventListener('input',function(){state.width=Math.max(1,Number(this.value||1))*MM_PER[state.unit];scheduleRender()});
+      $('heightInput').addEventListener('input',function(){state.height=Math.max(1,Number(this.value||1))*MM_PER[state.unit];scheduleRender()});
+      bindSegment('lineModeSeg','lineMode');bindSegment('inkModeSeg','inkMode');
+      $('fontSelect').addEventListener('change',function(){state.font=this.value;scheduleRender()});
+      ['showLabels','showGuides','showRuler'].forEach(function(id){$(id).addEventListener('change',function(){const key=id==='showLabels'?'showLabels':id==='showGuides'?'showGuides':'showRuler';state[key]=this.checked;scheduleRender()})});
+      document.querySelectorAll('.preset').forEach(function(b){b.addEventListener('click',function(){const v=b.dataset.size.split(',').map(Number);state.width=v[0];state.height=v[1];state.unit='cm';syncControls();scheduleRender()})});
+      $('fontUploadBtn').addEventListener('click',function(){$('fontFile').click()});
+      $('fontFile').addEventListener('change',async function(){const file=this.files&&this.files[0];if(!file)return;if(!/\.(ttf|otf|woff2?)$/i.test(file.name)){alert('TTF, OTF, WOFF veya WOFF2 font dosyası seç.');this.value='';return}try{if(importedUrl)URL.revokeObjectURL(importedUrl);importedBlob=file;importedName=file.name;importedUrl=URL.createObjectURL(file);const face=new FontFace('ImportedStencil','url("'+importedUrl+'")');await face.load();document.fonts.add(face);await dbPut('stencil-font',{blob:file,name:file.name});state.font='usaaf';setInput('fontSelect','usaaf');scheduleRender()}catch(e){importedBlob=null;showWarning('Font yüklenemedi. Geçerli bir TTF, OTF veya WOFF dosyası seç.');scheduleRender()}this.value=''});
+      $('previewMode').addEventListener('click',function(e){const b=e.target.closest('button[data-value]');if(!b)return;previewMode=b.dataset.value;syncPreviewToggle();renderPreview()});
+      $('zoomOut').addEventListener('click',function(){zoom=Math.max(.55,round(zoom-.1,2));renderPreview()});$('zoomIn').addEventListener('click',function(){zoom=Math.min(1.5,round(zoom+.1,2));renderPreview()});$('zoomFit').addEventListener('click',function(){zoom=1;renderPreview()});
+      $('printBtn').addEventListener('click',printNow);$('printBtnSide').addEventListener('click',printNow);
+      $('exportSvgBtn').addEventListener('click',exportSvg);
+      $('resetBtn').addEventListener('click',function(){if(!confirm('Mevcut taslağı varsayılan ölçü ve metne döndür?'))return;state=Object.assign({},DEFAULTS);selectedPage=0;previewMode='full';syncControls();syncPreviewToggle();scheduleRender()});
+      window.addEventListener('beforeprint',function(){renderPrint()});
+    }
+    async function restoreFont(){
+      const file=await dbGet('stencil-font');if(!file||!file.blob)return;
+      try{importedBlob=file.blob;importedName=file.name||'stencil-font';importedUrl=URL.createObjectURL(importedBlob);const face=new FontFace('ImportedStencil','url("'+importedUrl+'")');await face.load();document.fonts.add(face)}catch(e){importedBlob=null}
+    }
+    function detectUsaaf(){
+      const c=document.createElement('canvas').getContext('2d'),test='WMWiiii 0123';c.font='100px monospace';const base=c.measureText(test).width;
+      const options=['USAAF_Stencil','USAAF Stencil','USAAF_Serial_Stencil','USAAF Serial Stencil'];
+      for(let i=0;i<options.length;i++){c.font='100px "'+options[i]+'"';if(Math.abs(c.measureText(test).width-base)>1){localUsaafFamily=options[i];break}}
+    }
+    async function printNow(){
+      if($('printBtn').disabled)return;
+      try{await document.fonts.ready}catch(e){}
+      renderPrint();window.print();
+    }
+    function exportSvg(){
+      const svg=makeFullSvg(pageInfo);svg.setAttribute('width',Number(state.width)+'mm');svg.setAttribute('height',Number(state.height)+'mm');
+      const source='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(svg);
+      const blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='stencil-'+Math.round(Number(state.width))+'x'+Math.round(Number(state.height))+'mm.svg';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000);
+    }
+    async function start(){
+      loadState();detectUsaaf();syncControls();bindEvents();await restoreFont();
+      if(state.font==='custom'&&!importedBlob)state.font='usaaf';
+      syncControls();await document.fonts.ready;render();
+    }
+    start();
+  })();
+  </script>
+</body>
+</html>
