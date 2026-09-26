@@ -359,7 +359,7 @@
       const fontSize=Math.max(.1,Math.min(widthFont,innerH/heightRatio));
       const inkHeight=fontSize*inkRatio,pitch=inkHeight*spacing,totalH=inkHeight+(lineCount-1)*pitch;
       const top=(H-totalH)/2,baselines=lines.map(function(_,i){return top+ascent*fontSize+i*pitch});
-      return{W:W,H:H,lines:lines,widths:widths,fontSize:fontSize,ascent:ascent,descent:descent,baselines:baselines,inkHeight:inkHeight,track:track,trackOverflow:trackOverflow,innerW:innerW,innerH:innerH,empty:!String(state.text||'').trim()};
+      return{W:W,H:H,lines:lines,widths:widths,fontSize:fontSize,ascent:ascent,descent:descent,baselines:baselines,inkHeight:inkHeight,track:track,trackOverflow:trackOverflow,textAreaOverflow:2*inset>=W||2*inset>=H,innerW:innerW,innerH:innerH,empty:!String(state.text||'').trim()};
     }
     function drawArtwork(parent,layout){
       if(layout.empty)return;
@@ -475,6 +475,7 @@
         const m=Number(state.pageMargin)||0,tooLargeSingle=state.outputMode==='single'&&(Number(state.width)>pageInfo.cellW||Number(state.height)>pageInfo.cellH),invalid=pageInfo.cellW<=0||pageInfo.cellH<=0||Number(state.overlap)>=Math.min(pageInfo.cellW,pageInfo.cellH),layout=measureLayout();
         let warning='';if(invalid)warning='Kenar payı veya bindirme A4 iç alanına göre çok büyük. A4 sayfa kenar payını azalt veya bindirmeyi küçült.';
         else if(tooLargeSingle)warning='Tasarım seçilen güvenli alan içinde tek A4’e sığmıyor. Gerçek ölçeği korumak için ölçüyü küçült veya “Gerekli A4’lere böl” seç.';
+        else if(layout.textAreaOverflow)warning='Yazı iç payı tasarım genişliğine veya yüksekliğine sığmıyor. İç payı azalt.';
         else if(layout.trackOverflow)warning='Harf aralığı yazı alanını aşıyor. Harf aralığını küçült veya tasarım genişliğini artır.';
         else if(pageInfo.totalPages>240)warning='Bu ölçü '+pageInfo.totalPages+' sayfa oluşturuyor. Önizleme ve baskı güvenliği için tek seferde en fazla 240 sayfa desteklenir; ölçüyü küçült veya bindirme/pay değerlerini değiştir.';
         showWarning(warning);
