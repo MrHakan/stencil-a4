@@ -20,7 +20,11 @@ Türkçe, tarayıcıda çalışan ve gerçek ölçekte çıktı hazırlayan sten
 
 ## Çalıştırma
 
-`index.html` dosyasını tarayıcıda aç. GitHub Pages kullanmak için depoda **Settings → Pages → Deploy from a branch → main / root** seç.
+`index.html` dosyasını tarayıcıda aç; kurulum veya derleme gerekmez.
+
+### GitHub Pages
+
+`main` dalına her push'ta `.github/workflows/pages.yml` önce testleri çalıştırır, geçerse yalnızca site dosyalarını (`index.html`, `css/`, `js/`, `assets/`) yayınlar. İlk kurulumda bir kez depoda **Settings → Pages → Build and deployment → Source: GitHub Actions** seç. Site adresi: `https://<kullanıcı>.github.io/stencil-a4/`. Yayını elle tetiklemek için **Actions → Deploy to GitHub Pages → Run workflow** kullanılabilir.
 
 ## Proje yapısı
 
