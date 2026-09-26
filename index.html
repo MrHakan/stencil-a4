@@ -283,7 +283,7 @@
     let importedBlob=null;
     let importedName='';
     let importedUrl='';
-    let pageInfo={width:210,height:297,cellW:190,cellH:277,stepX:180,stepY:267,cols:1,rows:1,pages:[]};
+    let pageInfo={width:210,height:297,cellW:190,cellH:277,stepX:180,stepY:267,cols:1,rows:1,totalPages:1,pages:[]};
     let selectedPage=0;
     let previewMode='full';
     let zoom=1;
@@ -350,15 +350,16 @@
       const ref=ctx.measureText('Ag');
       const ascent=(ref.actualBoundingBoxAscent||720)/1000,descent=(ref.actualBoundingBoxDescent||220)/1000;
       const inkRatio=Math.max(.45,ascent+descent),track=Number(state.letterSpacing)||0,spacing=Number(state.lineSpacing||100)/100;
-      const widths=lines.map(function(line){const metric=ctx.measureText(line||' ');return Math.max(0,metric.width/1000+Math.max(0,line.length-1)*track/1000)});
+      const widths=lines.map(function(line){const metric=ctx.measureText(line||' ');return Math.max(0,metric.width/1000)});
       const chars=Math.max(1,...lines.map(function(x){return x.length}));
       const maxWidth=Math.max(1,...widths);
-      const widthFont=(innerW-Math.max(0,chars-1)*Math.max(0,track))/maxWidth;
+      const trackSpan=Math.max(0,chars-1)*track,trackOverflow=track>0&&trackSpan>=innerW;
+      const widthFont=(innerW-trackSpan)/maxWidth;
       const lineCount=Math.max(1,lines.length),heightRatio=inkRatio*(1+(lineCount-1)*spacing);
       const fontSize=Math.max(.1,Math.min(widthFont,innerH/heightRatio));
       const inkHeight=fontSize*inkRatio,pitch=inkHeight*spacing,totalH=inkHeight+(lineCount-1)*pitch;
       const top=(H-totalH)/2,baselines=lines.map(function(_,i){return top+ascent*fontSize+i*pitch});
-      return{W:W,H:H,lines:lines,widths:widths,fontSize:fontSize,ascent:ascent,descent:descent,baselines:baselines,inkHeight:inkHeight,track:track,innerW:innerW,innerH:innerH,empty:!String(state.text||'').trim()};
+      return{W:W,H:H,lines:lines,widths:widths,fontSize:fontSize,ascent:ascent,descent:descent,baselines:baselines,inkHeight:inkHeight,track:track,trackOverflow:trackOverflow,innerW:innerW,innerH:innerH,empty:!String(state.text||'').trim()};
     }
     function drawArtwork(parent,layout){
       if(layout.empty)return;
@@ -424,8 +425,9 @@
       const p=paper(),m=Math.max(0,Number(state.pageMargin)||0),cellW=p.width-2*m,cellH=p.height-2*m;
       const overlap=Math.max(0,Number(state.overlap)||0),stepX=Math.max(1,cellW-overlap),stepY=Math.max(1,cellH-overlap),W=Number(state.width)||1,H=Number(state.height)||1;
       const cols=state.outputMode==='single'?1:Math.max(1,Math.ceil(Math.max(0,W-cellW)/stepX)+1),rows=state.outputMode==='single'?1:Math.max(1,Math.ceil(Math.max(0,H-cellH)/stepY)+1);
-      const pages=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)pages.push({index:pages.length,row:r,col:c,x:c*stepX,y:r*stepY,label:pageName(r,c)});
-      return{width:p.width,height:p.height,cellW:cellW,cellH:cellH,stepX:stepX,stepY:stepY,cols:cols,rows:rows,pages:pages};
+      const totalPages=cols*rows,pages=[],renderCount=Math.min(totalPages,240);
+      for(let i=0;i<renderCount;i++){const r=Math.floor(i/cols),c=i%cols;pages.push({index:i,row:r,col:c,x:c*stepX,y:r*stepY,label:pageName(r,c)})}
+      return{width:p.width,height:p.height,cellW:cellW,cellH:cellH,stepX:stepX,stepY:stepY,cols:cols,rows:rows,totalPages:totalPages,pages:pages};
     }
     function showWarning(message){const el=$('warningBox');el.textContent=message||'';el.classList.toggle('show',!!message)}
     function updateFontStatus(){
@@ -439,7 +441,7 @@
     }
     function renderThumbs(){
       const list=$('thumbList');list.innerHTML='';
-      if(pageInfo.pages.length>240){list.innerHTML='<div class="thumb-empty">Önizleme performansı için sayfa listesi gizlendi ('+pageInfo.pages.length+' sayfa). Toplam sayfa sayısı üstte görünür.</div>';return}
+      if(pageInfo.totalPages>240){list.innerHTML='<div class="thumb-empty">Önizleme performansı için sayfa listesi gizlendi ('+pageInfo.totalPages+' sayfa). Toplam sayfa sayısı üstte görünür.</div>';return}
       pageInfo.pages.forEach(function(p){
         const button=document.createElement('button');button.type='button';button.className='thumb'+(selectedPage===p.index?' active':'');button.setAttribute('aria-label','Sayfa '+p.label+' önizlemesi');
         button.appendChild(makeSheetSvg(p,pageInfo,false));const name=document.createElement('div');name.className='thumb-name';name.innerHTML='<span>'+p.label+'</span><span>'+(p.index+1)+'/'+pageInfo.pages.length+'</span>';button.appendChild(name);
@@ -452,16 +454,16 @@
       const selected=pageInfo.pages[Math.min(selectedPage,pageInfo.pages.length-1)]||pageInfo.pages[0];
       if(previewMode==='page'&&selected){
         const wrap=document.createElement('div');wrap.className='sheet-wrap';wrap.style.width='min('+Math.round(pageInfo.width*0.85*zoom)+'px, 100%)';wrap.appendChild(makeSheetSvg(selected,pageInfo,false));stage.appendChild(wrap);
-        $('previewSub').textContent='Seçili A4 · '+selected.label;$('selectedPageCaption').textContent='Sayfa '+selected.label+' · '+(selected.index+1)+' / '+pageInfo.pages.length;
+        $('previewSub').textContent='Seçili A4 · '+selected.label;$('selectedPageCaption').textContent='Sayfa '+selected.label+' · '+(selected.index+1)+' / '+pageInfo.totalPages;
       }else{
         const wrap=document.createElement('div');wrap.className='full-wrap';wrap.style.width='min('+Math.round(Math.min(1080,Math.max(430,Number(state.width)*1.15))*zoom)+'px, 100%)';wrap.appendChild(makeFullSvg(pageInfo));stage.appendChild(wrap);
-        $('previewSub').textContent=pageInfo.cols+' × '+pageInfo.rows+' A4 · tam yerleşim';$('selectedPageCaption').textContent='İlk sayfa '+(selected?selected.label:'A1')+' · '+pageInfo.pages.length+' sayfa';
+        $('previewSub').textContent=pageInfo.cols+' × '+pageInfo.rows+' A4 · tam yerleşim';$('selectedPageCaption').textContent='İlk sayfa '+(selected?selected.label:'A1')+' · '+pageInfo.totalPages+' sayfa';
       }
     }
     function renderPrint(){
       const root=$('printRoot');root.innerHTML='';const p=paper();
       $('dynamicPrintStyle').textContent='@page{size:'+p.width+'mm '+p.height+'mm;margin:0}.print-sheet{width:'+p.width+'mm;height:'+p.height+'mm}.print-sheet svg{width:'+p.width+'mm;height:'+p.height+'mm}';
-      const limit=Math.min(pageInfo.pages.length,240);
+      const limit=pageInfo.totalPages>240?0:pageInfo.pages.length;
       for(let i=0;i<limit;i++){
         const page=pageInfo.pages[i],wrap=document.createElement('div');wrap.className='print-sheet';wrap.appendChild(makeSheetSvg(page,pageInfo,true));root.appendChild(wrap);
       }
@@ -470,17 +472,18 @@
       clearTimeout(renderTimer);renderTimer=setTimeout(async function(){
         try{await document.fonts.ready}catch(e){}
         pageInfo=calculatePages();selectedPage=Math.min(selectedPage,pageInfo.pages.length-1);
-        const p=paper(),m=Number(state.pageMargin)||0,tooLargeSingle=state.outputMode==='single'&&(Number(state.width)>pageInfo.cellW||Number(state.height)>pageInfo.cellH),invalid=pageInfo.cellW<=0||pageInfo.cellH<=0||Number(state.overlap)>=Math.min(pageInfo.cellW,pageInfo.cellH);
+        const m=Number(state.pageMargin)||0,tooLargeSingle=state.outputMode==='single'&&(Number(state.width)>pageInfo.cellW||Number(state.height)>pageInfo.cellH),invalid=pageInfo.cellW<=0||pageInfo.cellH<=0||Number(state.overlap)>=Math.min(pageInfo.cellW,pageInfo.cellH),layout=measureLayout();
         let warning='';if(invalid)warning='Kenar payı veya bindirme A4 iç alanına göre çok büyük. A4 sayfa kenar payını azalt veya bindirmeyi küçült.';
         else if(tooLargeSingle)warning='Tasarım seçilen güvenli alan içinde tek A4’e sığmıyor. Gerçek ölçeği korumak için ölçüyü küçült veya “Gerekli A4’lere böl” seç.';
-        else if(pageInfo.pages.length>240)warning='Bu ölçü '+pageInfo.pages.length+' sayfa oluşturuyor. Önizleme ve baskı güvenliği için tek seferde en fazla 240 sayfa desteklenir; ölçüyü küçült veya bindirme/pay değerlerini değiştir.';
+        else if(layout.trackOverflow)warning='Harf aralığı yazı alanını aşıyor. Harf aralığını küçült veya tasarım genişliğini artır.';
+        else if(pageInfo.totalPages>240)warning='Bu ölçü '+pageInfo.totalPages+' sayfa oluşturuyor. Önizleme ve baskı güvenliği için tek seferde en fazla 240 sayfa desteklenir; ölçüyü küçült veya bindirme/pay değerlerini değiştir.';
         showWarning(warning);
         $('printBtn').disabled=!!warning;$('printBtnSide').disabled=!!warning;
         $('metricSize').textContent=round(Number(state.width)/10,1)+' × '+round(Number(state.height)/10,1)+' <small>cm</small>';
-        $('metricPages').textContent=pageInfo.pages.length+' <small>A4</small>';
+        $('metricPages').textContent=pageInfo.totalPages+' <small>A4</small>';
         $('metricGrid').textContent=pageInfo.cols+' sütun × '+pageInfo.rows+' satır';
         $('lineCount').textContent=getLines().length+' satır';
-        $('pageListCaption').textContent=pageInfo.pages.length+' sayfa · A1’den başlayarak kodlanır';
+        $('pageListCaption').textContent=pageInfo.totalPages+' sayfa · A1’den başlayarak kodlanır';
         $('lineSpacingValue').textContent=state.lineSpacing+'%';
         updateFontStatus();renderPreview();renderThumbs();renderPrint();
         saveState();
