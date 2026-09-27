@@ -34,12 +34,12 @@ test('default project renders 4 tiled pages with the bundled font',async functio
   assert.equal(await page.locator('.thumb').count(),4);
   assert.equal(await page.locator('#printRoot .print-sheet:not(.print-map)').count(),4);
   assert.equal(await page.locator('#printRoot .print-map').count(),1,'assembly map is on by default');
-  assert.ok(await page.evaluate(function(){return document.fonts.check('400 20px "Stardos Stencil"')}));
+  assert.ok(await page.evaluate(function(){return document.fonts.check('400 20px "Black Ops One"')}));
 });
 
 test('each printed page crops the design to its own window',async function(){
   const boxes=await page.$$eval('#printRoot .print-sheet:not(.print-map) > svg > svg',function(views){return views.map(function(v){return v.getAttribute('viewBox')})});
-  assert.deepEqual(boxes,['0 0 190 277','180 0 190 277','360 0 190 277','540 0 190 277']);
+  assert.deepEqual(boxes,['0 0 190 277','175 0 190 277','350 0 190 277','525 0 190 277']);
   const ids=await page.$$eval('[id]',function(els){return els.map(function(e){return e.id})});
   assert.equal(new Set(ids).size,ids.length,'no duplicate ids');
 });
@@ -85,7 +85,7 @@ test('SVG export is real size and embeds the font',async function(){
   const svg=fs.readFileSync(file,'utf8');
   assert.match(svg,/width="600mm"/);
   assert.match(svg,/height="120mm"/);
-  assert.match(svg,/@font-face\{font-family:"Stardos Stencil"/);
+  assert.match(svg,/@font-face\{font-family:"Black Ops One";font-weight:400;src:url\(data:font\/woff2;base64,/);
   assert.match(svg,/ADVANTAGE SPRING/);
 });
 
@@ -98,13 +98,13 @@ test('zoom goes beyond the fitted size',async function(){
 });
 
 test('uploading a font switches to it and keeps it after reload',async function(){
-  const src=fs.readFileSync(path.resolve(__dirname,'..','js','fonts.js'),'utf8');
-  const b64=/700:'([^']+)'/.exec(src)[1];
-  await page.setInputFiles('#fontFile',{name:'MyStencil.ttf',mimeType:'font/ttf',buffer:Buffer.from(b64,'base64')});
-  await page.waitForFunction(function(){return /MyStencil\.ttf/.test(document.getElementById('fontStatus').textContent)});
+  const src=fs.readFileSync(path.resolve(__dirname,'..','fonts','saira.js'),'utf8');
+  const b64=/"400": "([^"]+)"/.exec(src)[1];
+  await page.setInputFiles('#fontFile',{name:'MyStencil.woff2',mimeType:'font/woff2',buffer:Buffer.from(b64,'base64')});
+  await page.waitForFunction(function(){return /MyStencil\.woff2/.test(document.getElementById('fontStatus').textContent)});
   assert.equal(await page.inputValue('#fontSelect'),'custom');
   await page.reload();
-  await page.waitForFunction(function(){return /MyStencil\.ttf/.test(document.getElementById('fontStatus').textContent)});
+  await page.waitForFunction(function(){return /MyStencil\.woff2/.test(document.getElementById('fontStatus').textContent)});
   assert.equal(await page.inputValue('#fontSelect'),'custom');
 });
 
@@ -122,14 +122,39 @@ test('join guides: cut edge on top/left, alignment line on bottom/right',async f
         text:svg.textContent};
     });
   });
-  // landscape: cell 277 x 190, step 267 x 180 -> 3 columns x 2 rows
+  // landscape: cell 277 x 190, step 262 x 175 -> 3 columns x 2 rows
   assert.equal(sheets.length,6);
   const a1=sheets[0],a2=sheets[1],b2=sheets[4];
   assert.deepEqual(a1.cut,[]);
-  assert.deepEqual(a1.align,['M 277 0 V 210','M 0 190 H 297']);
+  assert.deepEqual(a1.align,['M 272 0 V 210','M 0 185 H 297']);
   assert.deepEqual(a2.cut,['M 10 0 V 210']);
   assert.match(a2.text,/KES · A1 üzerine bindir/);
   assert.deepEqual(b2.cut,['M 10 0 V 210','M 0 10 H 297']);
   assert.match(a1.text,/A2 kesim kenarı/);
   assert.match(a1.text,/B1 kesim kenarı/);
+});
+
+test('bundled stencil fonts are selectable and flag missing Turkish letters',async function(){
+  const ids=await page.$$eval('#fontSelect option',function(o){return o.map(function(x){return x.value})});
+  for(const id of ['blackops','bigshoulders','saira','sticknobills','emblema','stardos','usaaf'])assert.ok(ids.includes(id),id);
+  await page.fill('#textInput','ŞİŞLİ DOĞU');
+  await page.selectOption('#fontSelect','bigshoulders');
+  await page.waitForTimeout(200);
+  assert.ok(await page.evaluate(function(){return document.fonts.check('700 20px "Big Shoulders Stencil"')}));
+  assert.ok(!(await page.isDisabled('#weightSelect')),'bold available');
+  assert.doesNotMatch(await page.textContent('#fontStatus'),/olmayan karakterler/);
+  await page.selectOption('#fontSelect','stardos');
+  await page.waitForTimeout(200);
+  assert.match(await page.textContent('#fontStatus'),/olmayan karakterler: Ş İ Ğ/);
+  await page.selectOption('#fontSelect','blackops');
+  await page.waitForTimeout(200);
+  assert.ok(await page.isDisabled('#weightSelect'),'Black Ops One has a single weight');
+});
+
+test('an old saved project with the former 10 mm default moves to 15 mm',async function(){
+  await page.evaluate(function(){localStorage.setItem('stencil-maker-project',JSON.stringify({text:'ESKI',overlap:10,font:'stardos'}))});
+  await page.reload();
+  await page.waitForFunction(function(){return document.querySelectorAll('#printRoot .print-sheet').length>0});
+  assert.equal(await page.inputValue('#overlap'),'15');
+  assert.equal(await page.inputValue('#fontSelect'),'stardos');
 });

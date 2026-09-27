@@ -40,12 +40,12 @@ test('a design that fits the safe area uses one page',function(){
 });
 
 test('tiling accounts for overlap between neighbours',function(){
-  // cell 190 x 277, step 180 x 267 in portrait with 10 mm margin and overlap
+  // cell 190 x 277, step 175 x 262 in portrait with 10 mm margin and 15 mm overlap
   const info=Core.calculatePages(state({width:600,height:120}));
-  assert.equal(info.cols,4); // 190 + 3*180 = 730 >= 600, 190 + 2*180 = 550 < 600
+  assert.equal(info.cols,4); // 190 + 3*175 = 715 >= 600, 190 + 2*175 = 540 < 600
   assert.equal(info.rows,1);
   assert.deepEqual(info.pages.map(function(p){return p.label}),['A1','A2','A3','A4']);
-  assert.equal(info.pages[1].x,180);
+  assert.equal(info.pages[1].x,175);
   const last=info.pages[info.pages.length-1];
   assert.ok(last.x+info.cellW>=600,'last page reaches the design edge');
 });
@@ -116,6 +116,15 @@ test('overflow conditions are reported',function(){
   assert.equal(Core.fitText(state({text:'AB',width:10,height:10,textInset:5}),['AB'],measure,ref).textAreaOverflow,true);
   assert.equal(Core.fitText(state({text:'ABCDEFGHIJ',width:50,height:50,textInset:0,letterSpacing:20}),['ABCDEFGHIJ'],measure,ref).trackOverflow,true);
   assert.equal(Core.fitText(state({text:'   '}),Core.getLines(state({text:'   '})),measure,ref).empty,true);
+});
+
+test('missingChars lists unsupported characters once',function(){
+  assert.deepEqual(Core.missingChars('ŞİŞ  ABC\nĞ','ABC'),['Ş','İ','Ğ']);
+  assert.deepEqual(Core.missingChars('AB A','AB'),[]);
+});
+
+test('defaults use a 15 mm overlap',function(){
+  assert.equal(Core.DEFAULTS.overlap,15);
 });
 
 test('formatLength respects units',function(){

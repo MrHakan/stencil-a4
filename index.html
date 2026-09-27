@@ -40,12 +40,10 @@
             <div class="segment" id="lineModeSeg" role="group" aria-label="Satır düzeni"><button type="button" data-value="single" class="active">Tek satır</button><button type="button" data-value="multi">Çok satır</button></div>
           </div>
           <div class="field">
-            <div class="label-row"><label for="fontSelect">Stencil yazı karakteri</label><span class="hint">Stencil only</span></div>
+            <div class="label-row"><label for="fontSelect">Stencil yazı karakteri</label><span class="hint">6 gömülü stencil + kendi fontun</span></div>
             <div class="font-row">
               <select class="select" id="fontSelect" aria-label="Stencil yazı karakteri">
-                <option value="usaaf">USAAF Stencil (bilgisayarda)</option>
-                <option value="stardos">Stardos Stencil</option>
-                <option value="custom" disabled>Yüklenen stencil</option>
+                <option value="usaaf">USAAF Stencil</option>
               </select>
               <button class="button small quiet" id="fontUploadBtn" type="button">Font yükle</button>
               <input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
@@ -102,7 +100,7 @@
             <label class="check"><input id="showOverlap" type="checkbox" checked><span>Birleştirme kılavuzları: ✂ kesim çizgisi, hizalama çizgisi ve hedef işaretleri</span></label>
             <label class="check"><input id="includeMap" type="checkbox" checked><span>Baskının başına birleştirme haritası sayfası ekle</span></label>
           </div>
-          <p class="note"><b>Birleştirme:</b> her sayfayı sol/üst kenarındaki kırmızı <b>✂</b> çizgisinden kes, kesilen kenarı komşu sayfadaki mavi çizgiye oturt ve bindirme şeridindeki hedefleri üst üste getir. Bindirme 10–20 mm önerilir. Güvenli kenar payı yazıcının basamadığı kâğıt kenarını dışarıda bırakır.</p>
+          <p class="note"><b>Birleştirme:</b> her sayfayı sol/üst kenarındaki kırmızı <b>✂</b> çizgisinden kes, kesilen kenarı komşu sayfadaki mavi çizgiye oturt ve bindirme şeridindeki hedefleri üst üste getir. Varsayılan bindirme 15 mm (10–20 mm önerilir). Güvenli kenar payı yazıcının basamadığı kâğıt kenarını dışarıda bırakır.</p>
         </div>
       </section>
 
@@ -153,7 +151,14 @@
 
   <div id="printRoot" aria-hidden="true"></div>
 
-  <script src="js/fonts.js"></script>
+  <script src="js/font-registry.js"></script>
+  <script src="fonts/catalog.js"></script>
+  <script src="fonts/blackops.js"></script>
+  <script src="fonts/bigshoulders.js"></script>
+  <script src="fonts/saira.js"></script>
+  <script src="fonts/sticknobills.js"></script>
+  <script src="fonts/emblema.js"></script>
+  <script src="fonts/stardos.js"></script>
   <script src="js/core.js"></script>
   <script src="js/app.js"></script>
 </body>

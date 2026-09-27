@@ -12,7 +12,7 @@
   const DEFAULTS=Object.freeze({
     text:'ADVANTAGE SPRING',lineMode:'single',font:'usaaf',weight:400,align:'center',
     width:600,height:120,unit:'cm',textInset:5,letterSpacing:0,lineSpacing:100,
-    orientation:'portrait',outputMode:'tile',pageMargin:10,overlap:10,inkMode:'solid',
+    orientation:'portrait',outputMode:'tile',pageMargin:10,overlap:15,inkMode:'solid',
     showLabels:true,showGuides:true,showRuler:true,showOverlap:true,includeMap:true
   });
 
@@ -21,7 +21,7 @@
     lineSpacing:[80,150],pageMargin:[0,50],overlap:[0,100]
   };
   const CHOICES={
-    lineMode:['single','multi'],font:['usaaf','stardos','custom'],weight:[400,700],
+    lineMode:['single','multi'],weight:[400,700],
     align:['center','left','right'],unit:['mm','cm','in'],orientation:['portrait','landscape'],
     outputMode:['tile','single'],inkMode:['solid','outline']
   };
@@ -35,6 +35,8 @@
     const src=input&&typeof input==='object'?input:{};
     const out=Object.assign({},DEFAULTS);
     out.text=typeof src.text==='string'?src.text.slice(0,500):DEFAULTS.text;
+    // Font ids come from the generated catalog; the app falls back when an id is unknown.
+    out.font=typeof src.font==='string'&&/^[a-z0-9]{1,32}$/.test(src.font)?src.font:DEFAULTS.font;
     Object.keys(LIMITS).forEach(function(k){
       const r=LIMITS[k];out[k]=clamp(num(src[k],DEFAULTS[k]),r[0],r[1]);
     });
@@ -92,6 +94,16 @@
     const raw=String(state.text||'');
     if(state.lineMode==='single')return [raw.replace(/[\r\n]+/g,' ').trim()];
     return raw.replace(/\r/g,'').split('\n');
+  }
+
+  /* Characters of `text` (ignoring whitespace) that are not in `supported`. */
+  function missingChars(text,supported){
+    const seen={},out=[];
+    Array.from(String(text||'')).forEach(function(c){
+      if(/\s/.test(c)||seen[c])return;seen[c]=1;
+      if(supported.indexOf(c)<0)out.push(c);
+    });
+    return out;
   }
 
   /* Fits text lines inside the design box.
@@ -158,5 +170,5 @@
 
   return{MM_PER:MM_PER,MAX_PAGES:MAX_PAGES,DEFAULTS:DEFAULTS,LIMITS:LIMITS,clamp:clamp,round:round,
     sanitizeState:sanitizeState,rowName:rowName,pageName:pageName,paperSize:paperSize,
-    calculatePages:calculatePages,getLines:getLines,fitText:fitText,formatLength:formatLength};
+    calculatePages:calculatePages,getLines:getLines,fitText:fitText,missingChars:missingChars,formatLength:formatLength};
 });

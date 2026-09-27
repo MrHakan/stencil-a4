@@ -5,7 +5,8 @@
   const SVG='http://www.w3.org/2000/svg';
   const STORAGE_KEY='stencil-maker-project';
   const IMPORTED_FAMILY='ImportedStencil';
-  const STARDOS_FAMILY='Stardos Stencil';
+  const FALLBACK_FONT='blackops';
+  const Fonts=window.StencilFonts;
   const INK='#111820';
 
   const $=function(id){return document.getElementById(id)};
@@ -48,20 +49,42 @@
     });
   }
   function saveState(){
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));$('saveStatus').textContent='Taslak kaydedildi'}
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(Object.assign({v:2},state)));$('saveStatus').textContent='Taslak kaydedildi'}
     catch(e){$('saveStatus').textContent='Bu tarayıcıda kayıt yapılamadı'}
   }
   function loadState(){
-    try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved)state=Core.sanitizeState(saved)}catch(e){}
+    try{
+      const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+      if(saved&&typeof saved==='object'){
+        if(!saved.v&&saved.overlap===10)saved.overlap=Core.DEFAULTS.overlap; // old default
+        state=Core.sanitizeState(saved);
+      }
+    }catch(e){}
   }
 
   /* ---------- fonts ---------- */
   function base64ToBytes(b64){const bin=atob(b64),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
   async function registerBundledFonts(){
-    const data=window.StencilFonts&&window.StencilFonts.stardos;if(!data)return;
-    await Promise.all(Object.keys(data).map(async function(weight){
-      try{const face=new FontFace(STARDOS_FAMILY,base64ToBytes(data[weight]).buffer,{weight:weight,style:'normal'});await face.load();document.fonts.add(face)}catch(e){}
-    }));
+    const jobs=[];
+    Object.keys(Fonts.faces).forEach(function(id){
+      const f=Fonts.faces[id];
+      Object.keys(f.weights).forEach(function(weight){
+        jobs.push((async function(){
+          try{const face=new FontFace(f.family,base64ToBytes(f.weights[weight]).buffer,{weight:weight,style:'normal'});await face.load();document.fonts.add(face)}catch(e){}
+        })());
+      });
+    });
+    await Promise.all(jobs);
+  }
+  function bundled(id){return Fonts.faces[id]?Fonts.faces[id]:null}
+  function catalogEntry(id){return Fonts.catalog.find(function(c){return c.id===id})||null}
+  function populateFontSelect(){
+    const sel=$('fontSelect');sel.textContent='';
+    const own=document.createElement('optgroup');own.label='Bilgisayardan / yüklenen';
+    [['usaaf','USAAF Stencil (bilgisayarda veya yüklenen)'],['custom','Yüklenen font']].forEach(function(o){const opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];own.appendChild(opt)});
+    const inApp=document.createElement('optgroup');inApp.label='Uygulamayla gelen (açık lisans)';
+    Fonts.catalog.forEach(function(c){if(!bundled(c.id))return;const opt=document.createElement('option');opt.value=c.id;opt.textContent=c.family;opt.title=c.note;inApp.appendChild(opt)});
+    sel.appendChild(inApp);sel.appendChild(own);
   }
   async function loadImportedFont(blob,name){
     const url=URL.createObjectURL(blob);
@@ -94,13 +117,14 @@
     if(state.font==='custom'&&imported)return 'imported';
     if(state.font==='usaaf'&&localUsaafFamily)return 'local';
     if(state.font==='usaaf'&&imported)return 'imported';
-    return 'stardos';
+    return bundled(state.font)?state.font:FALLBACK_FONT;
   }
   function fontFamily(){
     const src=fontSource();
-    return src==='imported'?IMPORTED_FAMILY:src==='local'?localUsaafFamily:STARDOS_FAMILY;
+    return src==='imported'?IMPORTED_FAMILY:src==='local'?localUsaafFamily:bundled(src).family;
   }
-  function fontWeight(){return fontSource()==='stardos'?Number(state.weight):400}
+  function hasBold(){const f=bundled(fontSource());return !!(f&&f.weights['700'])}
+  function fontWeight(){return hasBold()&&Number(state.weight)===700?700:400}
   function cssFont(size){return fontWeight()+' '+size+'px "'+fontFamily()+'"'}
 
   /* ---------- measuring ---------- */
@@ -285,7 +309,7 @@
     setInput('orientation',state.orientation);setInput('outputMode',state.outputMode);setInput('pageMargin',state.pageMargin);setInput('overlap',state.overlap);
     ['showLabels','showGuides','showRuler','showOverlap','includeMap'].forEach(function(k){$(k).checked=state[k]});
     setSegment('lineModeSeg',state.lineMode);setSegment('inkModeSeg',state.inkMode);
-    $('weightSelect').disabled=fontSource()!=='stardos';
+    $('weightSelect').disabled=!hasBold();
   }
   function setMetric(id,value,small){
     const el=$(id);el.textContent=value;
@@ -294,16 +318,22 @@
   function showWarning(message){const el=$('warningBox');el.textContent=message||'';el.classList.toggle('show',!!message)}
   function updateFontStatus(){
     const el=$('fontStatus'),src=fontSource();let message='',warn=false;
-    if(state.font==='stardos')message='Stardos Stencil hazır. Uygulamanın içinde gelir, SVG dışa aktarımına gömülür.';
+    const face=bundled(src);
+    const entry=catalogEntry(src);
+    if(face&&state.font===src)message=face.family+(entry?' — '+entry.note:'')+'. Uygulamayla gelir (SIL OFL), SVG dışa aktarımına gömülür.';
     else if(src==='local')message='USAAF Stencil bilgisayarında bulundu: '+localUsaafFamily+'. SVG dosyasına gömülemez; SVG’yi başka cihazda açarken fontun yüklü olması gerekir.';
     else if(src==='imported')message=(state.font==='usaaf'?'USAAF için ':'')+'yüklenen font kullanılıyor: '+imported.name;
-    else{message='USAAF Stencil bu tarayıcıda bulunamadı. Önizleme Stardos Stencil ile gösteriliyor; .ttf/.otf dosyasını yükleyince gerçek font uygulanır.';warn=true}
+    else{message='USAAF Stencil bu cihazda bulunamadı; yerine '+face.family+' gösteriliyor. USAAF’ın lisansı yalnızca kişisel kullanıma izin verdiği için siteye gömülemez: dosyayı “Font yükle” ile ekleyebilirsin, bu tarayıcıda saklanır.';warn=true}
+    if(face){
+      const missing=Core.missingChars(state.text,face.chars);
+      if(missing.length){message+=' Bu fontta olmayan karakterler: '+missing.join(' ')+' — başka bir font seç.';warn=true}
+    }
     el.classList.toggle('warn',warn);el.textContent='';
     const mark=document.createElement('span');mark.className='status-mark';mark.textContent=warn?'!':'✓';
     const text=document.createElement('span');text.textContent=message;
     el.appendChild(mark);el.appendChild(text);
     $('fontSelect').querySelector('option[value="custom"]').disabled=!imported;
-    $('weightSelect').disabled=src!=='stardos';
+    $('weightSelect').disabled=!hasBold();
   }
   function renderThumbs(){
     const list=$('thumbList');list.textContent='';
@@ -433,9 +463,10 @@
   function blobToDataUrl(blob){return new Promise(function(resolve,reject){const r=new FileReader();r.onload=function(){resolve(r.result)};r.onerror=reject;r.readAsDataURL(blob)})}
   async function embeddedFontCss(){
     const src=fontSource();
-    if(src==='stardos'){
-      const w=String(fontWeight()),data=window.StencilFonts.stardos[w];
-      return '@font-face{font-family:"'+STARDOS_FAMILY+'";font-weight:'+w+';src:url(data:font/ttf;base64,'+data+') format("truetype")}';
+    const face=bundled(src);
+    if(face){
+      const w=String(fontWeight());
+      return '@font-face{font-family:"'+face.family+'";font-weight:'+w+';src:url(data:font/woff2;base64,'+face.weights[w]+') format("woff2")}';
     }
     if(src==='imported'){
       const url=await blobToDataUrl(imported.blob);
@@ -456,9 +487,10 @@
   }
 
   async function start(){
-    loadState();detectUsaaf();syncControls();syncPreviewToggle();bindEvents();
+    populateFontSelect();loadState();detectUsaaf();syncControls();syncPreviewToggle();bindEvents();
     await Promise.all([registerBundledFonts(),restoreFont()]);
     if(state.font==='custom'&&!imported)state.font='usaaf';
+    if(state.font!=='usaaf'&&state.font!=='custom'&&!bundled(state.font))state.font=Core.DEFAULTS.font;
     syncControls();
     try{await document.fonts.ready}catch(e){}
     renderNow();

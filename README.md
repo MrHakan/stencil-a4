@@ -6,7 +6,7 @@ Türkçe, tarayıcıda çalışan ve gerçek ölçekte çıktı hazırlayan sten
 
 - Tasarımın genişlik ve yüksekliğini mm, cm veya inç olarak belirleme
 - Tek satır ve çok satırlı metin düzeni
-- Stencil font seçimi, bilgisayardaki USAAF Stencil'i algılama ve TTF/OTF/WOFF font yükleme
+- 6 gömülü açık lisanslı stencil font, bilgisayardaki USAAF Stencil'i algılama ve TTF/OTF/WOFF font yükleme
 - Sayfa başına güvenli kenar payı ve komşu sayfalar arasında bindirme ayarı
 - A4 dikey/yatay yönü, tek A4 veya otomatik döşeme
 - A1, A2, B1 gibi sayfa etiketleri; kesim alanı, hizalama işaretleri ve 100 mm kontrol çizgisi
@@ -31,7 +31,9 @@ Türkçe, tarayıcıda çalışan ve gerçek ölçekte çıktı hazırlayan sten
 ```
 index.html        Arayüz iskeleti
 css/app.css       Stiller ve baskı kuralları
-js/fonts.js       Gömülü Stardos Stencil (base64, çevrimdışı çalışma ve SVG gömme için)
+js/font-registry.js  Gömülü fontların kayıt noktası
+fonts/*.js        Gömülü OFL stencil fontları (base64 WOFF2, tools/build-fonts.py üretir)
+tools/            Font üretim betiği
 js/core.js        DOM'suz yerleşim/döşeme hesapları (tarayıcı + Node)
 js/app.js         Arayüz, SVG üretimi, baskı ve dışa aktarma
 tests/            Birim (node:test) ve tarayıcı (Playwright) testleri
@@ -63,13 +65,36 @@ Her sayfa, solundaki ve üstündeki komşunun **üzerine** bindirilir:
 3. Bindirme şeridinde her iki sayfada da aynı yerde basılan **hedef işaretlerini** ve harf çizgilerini üst üste getir, sonra bantla veya yapıştır.
 4. Önce her satırı soldan sağa (A1 → A2 → …), sonra satırları üstten alta birleştir.
 
-Baskının başındaki **birleştirme haritası** sayfası tüm düzeni, sayfa kodlarını ve bu adımları gösterir (varsayılan olarak açık). Bindirme için 10–20 mm önerilir; hedef işaretleri 4 mm ve üzeri bindirmede çizilir.
+Baskının başındaki **birleştirme haritası** sayfası tüm düzeni, sayfa kodlarını ve bu adımları gösterir (varsayılan olarak açık). Varsayılan bindirme 15 mm’dir (10–20 mm önerilir); hedef işaretleri 4 mm ve üzeri bindirmede çizilir.
 
 ## Fontlar
 
-Uygulamayla birlikte gelen **Stardos Stencil**, SIL Open Font License 1.1 altında Google Fonts deposundan alınmıştır. Lisans metni `assets/OFL.txt` içindedir.
+Uygulamada 6 stencil font gömülü gelir. Hepsi **SIL Open Font License 1.1** ile lisanslıdır (Google Fonts), bu yüzden siteye gömülüp dağıtılabilir. Lisans metinleri `assets/licenses/` içindedir.
 
-**USAAF Stencil** seçeneği, font bilgisayarda yüklüyse onu kullanır. Yüklü değilse arayüzden font dosyasını seçebilirsin. USAAF Stencil'i üçüncü taraf yazılımında kullanmadan önce fontun kendi lisansını kontrol et; DaFont kaydı kişisel kullanım olarak listelenmiştir: https://www.dafont.com/usaaf-stencil.font . Bu nedenle USAAF font dosyası depoya dahil edilmemiştir.
+| Font | Tarz | Türkçe (Ğ Ş İ) | Kalın |
+|---|---|---|---|
+| Black Ops One | Askeri stencil, USAAF'a en yakın | ✓ | – |
+| Big Shoulders Stencil | Dar gotik/grotesk stencil | ✓ | ✓ |
+| Saira Stencil One | Geniş, modern | ✓ | – |
+| Stick No Bills | Sokak/afiş | ✓ | ✓ |
+| Emblema One | Kalın, dekoratif | ✓ | – |
+| Stardos Stencil | Klasik serifli | ✗ | ✓ |
+
+Seçilen fontta bulunmayan bir harf yazılırsa uygulama uyarır.
+
+Fontlar `tools/build-fonts.py` ile üretilir. Betik fontları Google Fonts deposundan indirir, Latin + Latin Genişletilmiş alt kümesine indirir, değişken fontları sabit kalınlıklara çevirir ve base64 WOFF2 olarak `fonts/*.js` dosyalarına yazar. Böylece site `file://` üzerinden de çalışır ve SVG dışa aktarımı fontu içinde taşır.
+
+```
+pip install fonttools brotli
+python3 tools/build-fonts.py
+```
+
+**USAAF Stencil** ve **Stencil Gothic** (Brain Eaters) DaFont'ta "Free for personal use" lisanslıdır. Herkese açık bir siteye gömmek yeniden dağıtım sayılacağından depoya eklenmemiştir. Bu fontları kullanmak için:
+
+- Font bilgisayarda yüklüyse **USAAF Stencil** seçeneği onu otomatik algılar.
+- Yüklü değilse **Font yükle** ile TTF/OTF/WOFF dosyasını seç. Dosya yalnızca bu tarayıcıda saklanır, sunucuya gönderilmez.
+
+USAAF bulunamazsa yerine Black Ops One kullanılır. İndirme: https://www.dafont.com/usaaf-stencil.font
 
 ## Not
 
