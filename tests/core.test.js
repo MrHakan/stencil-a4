@@ -130,5 +130,55 @@ test('defaults use a 15 mm overlap',function(){
 test('formatLength respects units',function(){
   assert.equal(Core.formatLength(600,'cm'),'60');
   assert.equal(Core.formatLength(254,'in'),'10');
-  assert.equal(Core.formatLength(12.4,'mm'),'12');
+  assert.equal(Core.formatLength(12.4,'mm'),'12.4');
+  assert.equal(Core.formatLength(1,'in'),'0.03937');
+});
+
+test('fitText aligns actual ink including left and right overhangs',function(){
+  const inkMeasure=function(){return{advances:[0,.6],width:1.2,ascent:.7,descent:0,
+    bounds:[{left:-.1,right:.7},{left:0,right:.8}]}};
+  for(const align of ['left','center','right']){
+    const s=state({text:'AV',width:150,height:200,textInset:5,align:align});
+    const r=Core.fitText(s,['AV'],inkMeasure,ref),g=r.glyphs[0];
+    assert.ok(Math.abs(g.width-140)<1e-6,'visible ink fills the inner width');
+    assert.ok(Math.abs(g.xs[0]-.1*r.fontSize-5)<1e-4,'left ink stays inside the inset');
+    assert.ok(Math.abs(g.xs[1]+.8*r.fontSize-145)<1e-4,'right ink stays inside the inset');
+  }
+});
+
+test('fitText ignores inkless spaces and preserves blank-line spacing',function(){
+  const inkMeasure=function(){return{advances:[0,.3,.9],width:1.2,ascent:.7,descent:0,
+    bounds:[null,{left:0,right:.6},null]}};
+  const s=state({text:' A \n   \n A ',lineMode:'multi',width:100,height:500,textInset:0});
+  const r=Core.fitText(s,Core.getLines(s),inkMeasure,ref);
+  assert.equal(r.glyphs.length,2);
+  assert.ok(Math.abs(r.glyphs[0].xs[1])<1e-4);
+  assert.ok(Math.abs(r.glyphs[0].width-100)<1e-6);
+  assert.equal(Core.fitText(state({text:' \n\t',lineMode:'multi'}),[' ','\t'],measure,ref).empty,true);
+});
+
+test('intermediate line ink is included in the height constraint',function(){
+  const tallMeasure=function(line){return{advances:[0],width:.6,ascent:line==='X'?3:.7,descent:line==='X'?3:0}};
+  const s=state({text:'A\nX\nB',lineMode:'multi',width:1000,height:100,textInset:5,lineSpacing:80});
+  const r=Core.fitText(s,['A','X','B'],tallMeasure,ref);
+  const middle=r.glyphs[1];
+  assert.ok(Math.abs(middle.baseline-3*r.fontSize-5)<1e-4);
+  assert.ok(Math.abs(middle.baseline+3*r.fontSize-95)<1e-4);
+});
+
+test('negative tracking fits actual bounds even when glyph origins cross',function(){
+  const s=state({text:'ABC',width:4,height:50,textInset:0,letterSpacing:-5});
+  const r=Core.fitText(s,['ABC'],measure,ref);
+  assert.equal(r.trackOverflow,true,'crossed origins cannot fit these ink boxes into 4 mm');
+  const fits=Core.fitText(state({text:'ABC',width:10,height:50,textInset:0,letterSpacing:-5}),['ABC'],measure,ref);
+  const g=fits.glyphs[0];
+  assert.equal(fits.trackOverflow,false);
+  for(const x of g.xs){assert.ok(x>=-1e-4&&x+.6*fits.fontSize<=10+1e-4)}
+});
+
+test('very small designs do not force an overflowing minimum font size',function(){
+  const s=state({text:'A'.repeat(500),width:1,height:1,textInset:0});
+  const r=Core.fitText(s,Core.getLines(s),measure,ref);
+  assert.ok(r.fontSize<.1);
+  assert.ok(r.glyphs[0].width<=1+1e-9);
 });

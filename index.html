@@ -17,10 +17,10 @@
     </div>
     <div class="top-actions">
       <div class="top-note"><span class="dot"></span><span id="saveStatus">Otomatik kaydediliyor</span></div>
-      <button class="button dark" id="exportSvgBtn" type="button" title="Taslağı gerçek ölçekte SVG indir">
+      <button class="button dark" id="exportSvgBtn" type="button" title="Taslağı gerçek ölçekte SVG indir" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>SVG indir
       </button>
-      <button class="button primary" id="printBtn" type="button">
+      <button class="button primary" id="printBtn" type="button" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8V3h10v5M6 17H4V9h16v8h-2M7 14h10v7H7z"/><path d="M17 11h.01"/></svg>Yazdır / PDF
       </button>
     </div>
@@ -107,9 +107,8 @@
       <section class="card">
         <div class="card-head"><span class="step">04</span><div class="card-title">Çıktı ve kontrol</div><span class="card-kicker">Baskı</span></div>
         <div class="card-body">
-          <div class="warning" id="warningBox"></div>
           <div class="two-col">
-            <button class="button primary" id="printBtnSide" type="button">Yazdır / PDF kaydet</button>
+            <button class="button primary" id="printBtnSide" type="button" disabled>Yazdır / PDF kaydet</button>
             <button class="button" id="resetBtn" type="button">Taslağı sıfırla</button>
           </div>
           <p class="note">Yazdır penceresinde A4, kenar boşluğu <b>Yok</b> ve ölçek <b>%100 / Gerçek boyut</b> seç. Tarayıcı üstbilgi ve altbilgilerini kapat. İlk sayfadaki 100 mm çizgiyi cetvelle ölçerek ölçeği doğrula.</p>
@@ -118,6 +117,7 @@
     </aside>
 
     <section class="workspace">
+      <div class="warning" id="warningBox" role="status" aria-live="polite"></div>
       <div class="summary-strip">
         <div class="metric"><div class="metric-label">Tasarım dış ölçüsü</div><div class="metric-value" id="metricSize">—</div></div>
         <div class="metric"><div class="metric-label">A4 sayfa</div><div class="metric-value accent" id="metricPages">—</div></div>
@@ -136,7 +136,11 @@
         <div class="preview-stage" id="previewStage"><div class="preview-empty">Önizleme hazırlanıyor…</div></div>
         <div class="preview-caption">
           <div class="legend"><span class="legend-item"><i class="legend-line"></i>A4 döşeme sınırı</span><span class="legend-item"><i class="legend-outline"></i>Tasarım sınırı</span><span class="legend-item"><i class="legend-cut"></i>✂ Kesim çizgisi</span><span class="legend-item"><i class="legend-align"></i>Hizalama çizgisi</span><span id="scaleCaption">Ekran önizlemesi ölçekli gösterilir; baskı 1:1 kalır.</span></div>
-          <span id="selectedPageCaption">Sayfa A1</span>
+          <div class="page-navigation" role="group" aria-label="A4 sayfa gezintisi">
+            <button class="icon-btn" id="previousPage" type="button" aria-label="Önceki A4 sayfası" disabled>←</button>
+            <span id="selectedPageCaption" aria-live="polite">Sayfa A1</span>
+            <button class="icon-btn" id="nextPage" type="button" aria-label="Sonraki A4 sayfası" disabled>→</button>
+          </div>
         </div>
       </section>
 

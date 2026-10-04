@@ -4,16 +4,31 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const path=require('node:path');
 const fs=require('node:fs');
+const http=require('node:http');
 const {chromium}=require('playwright');
 
-const url='file://'+path.resolve(__dirname,'..','index.html');
-let browser,page,errors;
+const root=path.resolve(__dirname,'..');
+let url,server,browser,page,errors;
 
 test.before(async function(){
+  // Exercise the same HTTP origin as GitHub Pages; also works in browsers
+  // whose managed policy disables file:// navigation.
+  server=http.createServer(function(req,res){
+    const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
+    const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+    if(!file.startsWith(root+path.sep)){res.writeHead(403);res.end();return}
+    fs.readFile(file,function(error,data){
+      if(error){res.writeHead(404);res.end();return}
+      const types={'.html':'text/html','.js':'text/javascript','.css':'text/css'};
+      res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.end(data);
+    });
+  });
+  await new Promise(function(resolve){server.listen(0,'127.0.0.1',resolve)});
+  url='http://127.0.0.1:'+server.address().port+'/';
   const executablePath=process.env.CHROMIUM_PATH||undefined;
   browser=await chromium.launch(executablePath?{executablePath:executablePath}:{});
 });
-test.after(async function(){await browser.close()});
+test.after(async function(){if(browser)await browser.close();if(server)await new Promise(function(resolve){server.close(resolve)})});
 test.beforeEach(async function(){
   const context=await browser.newContext({viewport:{width:1300,height:900},acceptDownloads:true});
   page=await context.newPage();errors=[];
@@ -157,4 +172,109 @@ test('an old saved project with the former 10 mm default moves to 15 mm',async f
   await page.waitForFunction(function(){return document.querySelectorAll('#printRoot .print-sheet').length>0});
   assert.equal(await page.inputValue('#overlap'),'15');
   assert.equal(await page.inputValue('#fontSelect'),'stardos');
+});
+
+test('empty and overflowing artwork cannot print or export blank files',async function(){
+  await page.fill('#textInput','   ');
+  await page.waitForFunction(function(){return document.getElementById('exportSvgBtn').disabled});
+  assert.ok(await page.isDisabled('#printBtn'));
+  assert.match(await page.textContent('#warningBox'),/metni boş/);
+  assert.equal(await page.locator('#printRoot .print-sheet').count(),0);
+  await page.click('#lineModeSeg button[data-value="multi"]');
+  await page.fill('#textInput',' \n\t');
+  await page.waitForTimeout(100);
+  assert.ok(await page.isDisabled('#exportSvgBtn'));
+  await page.fill('#textInput','AB');
+  await setValue('textInset',70);
+  assert.ok(await page.isDisabled('#exportSvgBtn'));
+  assert.match(await page.textContent('#warningBox'),/İç payı azalt/);
+  await setValue('textInset',5);
+  await page.waitForFunction(function(){return !document.getElementById('exportSvgBtn').disabled});
+});
+
+test('output revalidates edits that arrive before the debounced preview',async function(){
+  await page.evaluate(function(){
+    window.printCalls=0;window.print=function(){window.printCalls++};
+    const input=document.getElementById('textInput');input.value='';input.dispatchEvent(new Event('input'));
+    document.getElementById('printBtn').click();
+  });
+  await page.waitForFunction(function(){return document.getElementById('printBtn').disabled});
+  assert.equal(await page.evaluate(function(){return window.printCalls}),0);
+  assert.equal(await page.locator('#printRoot .print-sheet').count(),0);
+  await page.fill('#textInput','GEÇERLİ');
+  await page.waitForFunction(function(){return !document.getElementById('printBtn').disabled});
+  await page.evaluate(function(){
+    const input=document.getElementById('textInset');input.value='100';input.dispatchEvent(new Event('input'));
+    window.dispatchEvent(new Event('beforeprint'));
+  });
+  assert.equal(await page.locator('#printRoot .print-sheet').count(),0,'native print cannot use stale sheets');
+});
+
+test('SVG remains available when only the A4 page setup is invalid',async function(){
+  await page.selectOption('#outputMode','single');
+  await page.waitForFunction(function(){return document.getElementById('printBtn').disabled});
+  assert.ok(!(await page.isDisabled('#exportSvgBtn')));
+  const [download]=await Promise.all([page.waitForEvent('download'),page.click('#exportSvgBtn')]);
+  assert.match(fs.readFileSync(await download.path(),'utf8'),/width="600mm"/);
+});
+
+test('visible ink overhangs fit inside the requested inset',async function(){
+  await page.selectOption('#fontSelect','emblema');
+  await page.selectOption('#unitSelect','mm');
+  await setValue('widthInput',100);await setValue('heightInput',100);
+  await page.fill('#textInput','AVT');
+  await page.waitForTimeout(100);
+  const bounds=await page.evaluate(function(){
+    const text=document.querySelector('#previewStage svg > svg text'),group=text.parentNode;
+    const ctx=document.createElement('canvas').getContext('2d');
+    ctx.font=group.getAttribute('font-weight')+' '+group.getAttribute('font-size')+'px '+group.getAttribute('font-family');ctx.fontKerning='none';
+    const xs=text.getAttribute('x').split(' ').map(Number),chars=Array.from(text.textContent);
+    return chars.map(function(char,i){const m=ctx.measureText(char);return{left:xs[i]-m.actualBoundingBoxLeft,right:xs[i]+m.actualBoundingBoxRight}});
+  });
+  // Canvas hinting at a small size may differ slightly from the 1000 px measurement.
+  assert.ok(Math.min(...bounds.map(function(b){return b.left}))>=4.8);
+  assert.ok(Math.max(...bounds.map(function(b){return b.right}))<=95.2);
+});
+
+test('fractional dimensions stay visible when switching units',async function(){
+  await page.selectOption('#unitSelect','mm');
+  await setValue('widthInput',12.4);await setValue('heightInput',20.25);
+  assert.equal(await page.textContent('#metricSize'),'12.4 × 20.25 mm');
+  await page.selectOption('#unitSelect','in');
+  assert.equal(await page.inputValue('#widthInput'),'0.48819');
+  assert.ok(await page.$eval('#widthInput',function(el){return el.validity.valid}));
+  await page.selectOption('#unitSelect','mm');
+  assert.equal(await page.inputValue('#widthInput'),'12.4');
+  assert.equal(await page.inputValue('#heightInput'),'20.25');
+});
+
+test('page navigation reflects selection and stops at grid boundaries',async function(){
+  assert.ok(await page.isDisabled('#previousPage'));
+  for(const code of ['A2','A3','A4']){
+    await page.click('#nextPage');assert.match(await page.textContent('#selectedPageCaption'),new RegExp(code));
+  }
+  assert.ok(await page.isDisabled('#nextPage'));
+  assert.equal(await page.locator('.thumb[aria-pressed="true"]').count(),1);
+  await page.click('#previousPage');assert.match(await page.textContent('#selectedPageCaption'),/A3/);
+  await page.selectOption('#unitSelect','mm');await setValue('widthInput',150);
+  assert.match(await page.textContent('#selectedPageCaption'),/A1/);
+  assert.ok(await page.isDisabled('#previousPage'));
+  assert.ok(await page.isDisabled('#nextPage'));
+});
+
+test('fit preview uses the available width on mobile and scrolls when zoomed',async function(){
+  // Ubuntu runners default to DejaVu Sans; its wider controls used to force
+  // the sidebar's grid track past a 320 px viewport.
+  await page.addStyleTag({content:'body{font-family:"DejaVu Sans",sans-serif}'});
+  await page.setViewportSize({width:320,height:740});
+  await page.waitForTimeout(200);
+  const size=await page.evaluate(function(){
+    const stage=document.getElementById('previewStage'),style=getComputedStyle(stage);
+    return{available:stage.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),wrap:document.querySelector('.full-wrap').clientWidth,
+      body:document.body.scrollWidth,viewport:innerWidth};
+  });
+  assert.ok(Math.abs(size.available-size.wrap)<=1);
+  assert.equal(size.body,size.viewport);
+  await page.click('#zoomIn');await page.click('#zoomIn');
+  assert.ok(await page.$eval('#previewStage',function(el){return el.scrollWidth>el.clientWidth}));
 });

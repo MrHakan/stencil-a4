@@ -14,9 +14,12 @@ Türkçe, tarayıcıda çalışan ve gerçek ölçekte çıktı hazırlayan sten
 - Gerçek ölçekte SVG indirme ve tarayıcıdan yazdırma / PDF kaydetme
 - Kes-bindir kılavuzları: kırmızı ✂ kesim çizgisi, komşu sayfada mavi hizalama çizgisi ve bindirme şeridinde eşleşen hedef işaretleri
 - İsteğe bağlı birleştirme haritası sayfası: tüm yerleşim ve sayfa kodları tek A4'te
-- Yazı, gerçek harf çizimine (mürekkep sınırına) göre tasarım alanına sığdırılır; harf yüksekliği özet şeridinde görünür
-- SVG dışa aktarımında Stardos Stencil veya yüklenen font dosyanın içine gömülür
+- Yazı, taşan harf kenarları ve negatif harf aralığı dahil gerçek mürekkep sınırına göre tasarım alanına sığdırılır; harf yüksekliği özet şeridinde görünür
+- SVG dışa aktarımında seçilen gömülü veya yüklenen font dosyanın içine gömülür
 - Taslak ve yüklenen font bu tarayıcıda saklanır
+- Önceki/sonraki A4 düğmeleriyle döşenen sayfalar arasında gezinme
+- Boş metin ve geçersiz yazı alanında baskı/SVG engeli; uyarılar canlı önizlemenin yanında görünür
+- Kesirli ölçüler ve mm/cm/inç geçişlerinde hassas ölçü gösterimi
 
 ## Çalıştırma
 
@@ -47,10 +50,11 @@ Derleme adımı yoktur; dosyalar doğrudan `file://` üzerinden de çalışır.
 npm install
 npx playwright install chromium   # ilk seferde
 npm test            # yerleşim ve döşeme birim testleri
-npm run test:e2e    # tarayıcıda uçtan uca testler
+npm run test:e2e    # yerel HTTP sunucusunda tarayıcı uçtan uca testleri
 ```
 
 GitHub Actions her push ve pull request'te iki test takımını da çalıştırır.
+Sistemde Chromium zaten kuruluysa `CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e` kullanılabilir.
 
 ## Gerçek ölçekte yazdırma
 
