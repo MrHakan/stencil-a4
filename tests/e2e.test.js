@@ -263,6 +263,9 @@ test('page navigation reflects selection and stops at grid boundaries',async fun
 });
 
 test('fit preview uses the available width on mobile and scrolls when zoomed',async function(){
+  // Ubuntu runners default to DejaVu Sans; its wider controls used to force
+  // the sidebar's grid track past a 320 px viewport.
+  await page.addStyleTag({content:'body{font-family:"DejaVu Sans",sans-serif}'});
   await page.setViewportSize({width:320,height:740});
   await page.waitForTimeout(200);
   const size=await page.evaluate(function(){
