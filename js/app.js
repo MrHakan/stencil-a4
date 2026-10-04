@@ -131,11 +131,17 @@
   function computeLayout(){
     const ctx=document.createElement('canvas').getContext('2d'),S=1000;
     ctx.font=cssFont(S);
+    ctx.fontKerning='none';
     function measure(line){
-      const chars=Array.from(line),advances=[];let prefix='';
-      for(let i=0;i<chars.length;i++){advances.push(i?ctx.measureText(prefix).width/S:0);prefix+=chars[i]}
+      const chars=Array.from(line),advances=[],bounds=[];let advance=0;
+      chars.forEach(function(char){
+        const m=ctx.measureText(char);
+        advances.push(advance/S);advance+=m.width;
+        bounds.push(m.actualBoundingBoxLeft+m.actualBoundingBoxRight>0?
+          {left:-m.actualBoundingBoxLeft/S,right:m.actualBoundingBoxRight/S}:null);
+      });
       const m=ctx.measureText(line);
-      return{advances:advances,width:m.width/S,ascent:(m.actualBoundingBoxAscent||0)/S,descent:(m.actualBoundingBoxDescent||0)/S};
+      return{advances:advances,bounds:bounds,width:advance/S,ascent:(m.actualBoundingBoxAscent||0)/S,descent:(m.actualBoundingBoxDescent||0)/S};
     }
     const r=ctx.measureText('HÇgj');
     const ref={ascent:(r.actualBoundingBoxAscent||720)/S,descent:(r.actualBoundingBoxDescent||220)/S};
@@ -151,10 +157,11 @@
     const outline=state.inkMode==='outline';
     const group=svgNode('g',{
       'font-family':'"'+fontFamily()+'"','font-size':Core.round(layout.fontSize,4),'font-weight':fontWeight(),
+      'font-kerning':'none','font-variant-ligatures':'none',
       fill:outline?'none':INK,stroke:outline?INK:'none','stroke-width':outline?.42:0,'stroke-linejoin':'round'
     });
     layout.glyphs.forEach(function(g){
-      // Explicit per-character x positions keep kerning and tracking identical in every renderer.
+      // Explicit positions keep measured ink and tracking consistent in every renderer.
       group.appendChild(svgText({x:g.xs.join(' '),y:g.baseline,'xml:space':'preserve'},g.text));
     });
     parent.appendChild(group);
@@ -303,7 +310,10 @@
   function setSegment(id,value){$(id).querySelectorAll('button').forEach(function(b){const on=b.dataset.value===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))})}
   function syncControls(){
     setInput('textInput',state.text);setInput('fontSelect',state.font);setInput('weightSelect',String(state.weight));setInput('alignSelect',state.align);
-    setInput('unitSelect',state.unit);setInput('widthInput',Core.round(state.width/MM_PER[state.unit],2));setInput('heightInput',Core.round(state.height/MM_PER[state.unit],2));
+    setInput('unitSelect',state.unit);setInput('widthInput',Core.formatLength(state.width,state.unit));setInput('heightInput',Core.formatLength(state.height,state.unit));
+    ['widthInput','heightInput'].forEach(function(id){
+      $(id).min=Core.formatLength(Core.LIMITS.width[0],state.unit);$(id).max=Core.formatLength(Core.LIMITS.width[1],state.unit);$(id).step='any';
+    });
     document.querySelectorAll('.unitSuffix').forEach(function(x){x.textContent=state.unit==='in'?'inç':state.unit});
     setInput('textInset',state.textInset);setInput('letterSpacing',state.letterSpacing);setInput('lineSpacing',state.lineSpacing);
     setInput('orientation',state.orientation);setInput('outputMode',state.outputMode);setInput('pageMargin',state.pageMargin);setInput('overlap',state.overlap);
@@ -344,6 +354,7 @@
     pageInfo.pages.forEach(function(p){
       const button=document.createElement('button');button.type='button';button.className='thumb'+(selectedPage===p.index&&previewMode==='page'?' active':'');
       button.setAttribute('aria-label','Sayfa '+p.label+' önizlemesi');button.dataset.index=p.index;
+      button.setAttribute('aria-pressed',String(selectedPage===p.index&&previewMode==='page'));
       button.appendChild(makeSheetSvg(p,pageInfo,false));
       const name=document.createElement('div');name.className='thumb-name';
       const a=document.createElement('span');a.textContent=p.label;const b=document.createElement('span');b.textContent=(p.index+1)+'/'+pageInfo.totalPages;
@@ -351,12 +362,21 @@
     });
     list.appendChild(frag);
   }
+  function syncThumbSelection(){
+    document.querySelectorAll('#thumbList .thumb').forEach(function(button){
+      const on=previewMode==='page'&&Number(button.dataset.index)===selectedPage;
+      button.classList.toggle('active',on);button.setAttribute('aria-pressed',String(on));
+    });
+  }
   function syncPreviewToggle(){document.querySelectorAll('#previewMode button').forEach(function(b){const on=b.dataset.value===previewMode;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))})}
   function renderPreview(){
     const stage=$('previewStage');stage.textContent='';
-    const avail=Math.max(200,stage.clientWidth-48),availH=Math.max(240,window.innerHeight*.7);
+    const style=getComputedStyle(stage);
+    const avail=Math.max(1,stage.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight)),availH=Math.max(240,window.innerHeight*.7);
     const selected=pageInfo.pages[Math.min(selectedPage,pageInfo.pages.length-1)];
     $('zoomValue').textContent=Math.round(zoom*100)+'%';
+    $('previousPage').disabled=!selected||selectedPage===0;
+    $('nextPage').disabled=!selected||selectedPage>=pageInfo.pages.length-1;
     if(previewMode==='page'&&selected){
       const fit=Math.min(avail,availH*pageInfo.width/pageInfo.height);
       const wrap=document.createElement('div');wrap.className='sheet-wrap';wrap.style.width=Math.round(fit*zoom)+'px';
@@ -374,7 +394,7 @@
   function renderPrint(){
     const root=$('printRoot');root.textContent='';const p=Core.paperSize(state.orientation);
     $('dynamicPrintStyle').textContent='@page{size:'+p.width+'mm '+p.height+'mm;margin:0}.print-sheet{width:'+p.width+'mm;height:'+p.height+'mm}.print-sheet>svg{width:'+p.width+'mm;height:'+p.height+'mm}';
-    if(pageInfo.tooMany||pageInfo.invalid)return;
+    if(collectWarning())return;
     function add(svg,extra){const wrap=document.createElement('div');wrap.className='print-sheet'+(extra?' '+extra:'');wrap.appendChild(svg);root.appendChild(wrap)}
     if(state.includeMap&&state.outputMode==='tile'&&pageInfo.totalPages>1)add(makeMapSvg(pageInfo),'print-map');
     pageInfo.pages.forEach(function(page){add(makeSheetSvg(page,pageInfo,true))});
@@ -382,17 +402,24 @@
   function collectWarning(){
     if(pageInfo.invalid)return 'Kenar payı veya bindirme A4 iç alanına göre çok büyük. Kenar payını azalt veya bindirmeyi küçült.';
     if(pageInfo.tooLargeSingle)return 'Tasarım güvenli alan içinde tek A4’e sığmıyor. Gerçek ölçeği korumak için ölçüyü küçült veya “Gerekli A4’lere böl” seç.';
-    if(layout.textAreaOverflow)return 'Yazı iç payı tasarım genişliğine veya yüksekliğine sığmıyor. İç payı azalt.';
-    if(layout.trackOverflow)return 'Harf aralığı yazı alanını aşıyor. Harf aralığını küçült veya tasarım genişliğini artır.';
+    const artwork=artworkWarning();if(artwork)return artwork;
     if(pageInfo.tooMany)return 'Bu ölçü '+pageInfo.totalPages+' sayfa oluşturuyor. Tek seferde en fazla '+Core.MAX_PAGES+' sayfa desteklenir; ölçüyü küçült veya pay değerlerini değiştir.';
     return '';
   }
+  function artworkWarning(){
+    if(layout.empty)return 'Şablon metni boş. Yazdırmak veya SVG indirmek için metin yaz.';
+    if(layout.textAreaOverflow)return 'Yazı iç payı tasarım genişliğine veya yüksekliğine sığmıyor. İç payı azalt.';
+    if(layout.trackOverflow)return 'Harf aralığı yazı alanını aşıyor. Harf aralığını küçült veya tasarım genişliğini artır.';
+    return '';
+  }
   function renderNow(){
+    clearTimeout(renderTimer);
     pageInfo=Core.calculatePages(state);layout=computeLayout();
     selectedPage=Math.max(0,Math.min(selectedPage,pageInfo.pages.length-1));
     const warning=collectWarning();
     showWarning(warning);
     $('printBtn').disabled=!!warning;$('printBtnSide').disabled=!!warning;
+    $('exportSvgBtn').disabled=!!artworkWarning();
     setMetric('metricSize',Core.formatLength(state.width,state.unit)+' × '+Core.formatLength(state.height,state.unit),state.unit==='in'?'inç':state.unit);
     setMetric('metricPages',String(pageInfo.totalPages),'A4');
     setMetric('metricGrid',pageInfo.cols+' × '+pageInfo.rows,'sütun × satır');
@@ -419,6 +446,10 @@
     el.addEventListener('change',function(){handler();if(el.type==='number')syncControls()});
   }
   function bindSegment(id,key){$(id).addEventListener('click',function(e){const b=e.target.closest('button[data-value]');if(!b)return;setSegment(id,b.dataset.value);update(key,b.dataset.value)})}
+  function selectPage(index){
+    if(!pageInfo.pages[index])return;
+    selectedPage=index;previewMode='page';syncPreviewToggle();renderPreview();syncThumbSelection();
+  }
   function bindEvents(){
     bindInput('textInput','text');bindInput('weightSelect','weight',Number);bindInput('alignSelect','align');
     bindInput('textInset','textInset',Number);bindInput('letterSpacing','letterSpacing',Number);bindInput('lineSpacing','lineSpacing',Number);
@@ -439,9 +470,10 @@
     });
     $('thumbList').addEventListener('click',function(e){
       const b=e.target.closest('.thumb');if(!b)return;
-      selectedPage=Number(b.dataset.index);previewMode='page';syncPreviewToggle();renderPreview();
-      document.querySelectorAll('.thumb').forEach(function(t){t.classList.toggle('active',t===b)});
+      selectPage(Number(b.dataset.index));
     });
+    $('previousPage').addEventListener('click',function(){selectPage(selectedPage-1)});
+    $('nextPage').addEventListener('click',function(){selectPage(selectedPage+1)});
     $('previewMode').addEventListener('click',function(e){const b=e.target.closest('button[data-value]');if(!b)return;previewMode=b.dataset.value;syncPreviewToggle();renderPreview();renderThumbs()});
     $('zoomOut').addEventListener('click',function(){zoom=Math.max(.5,Core.round(zoom-.25,2));renderPreview()});
     $('zoomIn').addEventListener('click',function(){zoom=Math.min(4,Core.round(zoom+.25,2));renderPreview()});
@@ -449,14 +481,14 @@
     $('printBtn').addEventListener('click',printNow);$('printBtnSide').addEventListener('click',printNow);
     $('exportSvgBtn').addEventListener('click',exportSvg);
     $('resetBtn').addEventListener('click',function(){if(!confirm('Mevcut taslağı varsayılan ölçü ve metne döndür?'))return;state=Object.assign({},Core.DEFAULTS);selectedPage=0;previewMode='full';zoom=1;syncControls();syncPreviewToggle();scheduleRender()});
-    window.addEventListener('beforeprint',function(){if(layout)renderPrint()});
+    window.addEventListener('beforeprint',function(){if(layout)renderNow()});
     let resizeTimer=null;
     window.addEventListener('resize',function(){clearTimeout(resizeTimer);resizeTimer=setTimeout(function(){if(layout)renderPreview()},120)});
   }
   async function printNow(){
-    if($('printBtn').disabled)return;
     try{await document.fonts.ready}catch(e){}
-    renderNow();window.print();
+    renderNow();if(collectWarning())return;
+    window.print();
   }
 
   /* ---------- export ---------- */
@@ -475,7 +507,9 @@
     return '';
   }
   async function exportSvg(){
+    try{await document.fonts.ready}catch(e){}
     renderNow();
+    if(artworkWarning())return;
     const svg=makeFullSvg(false);
     svg.setAttribute('width',Core.round(layout.W,3)+'mm');svg.setAttribute('height',Core.round(layout.H,3)+'mm');
     const css=await embeddedFontCss();

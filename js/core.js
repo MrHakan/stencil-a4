@@ -108,7 +108,9 @@
 
   /* Fits text lines inside the design box.
      measure(line) must return metrics at a font size of 1 unit:
-       {advances:[x offset of each char], width, ascent, descent}
+       {advances:[x offset of each char], width, ascent, descent, bounds:[{left,right}|null]}
+     Optional bounds describe each character's ink relative to its own origin; null
+     characters (spaces) have no ink. Without bounds, advance boxes are used.
      where ascent/descent are the actual ink extents of the line. `ref` gives the same for a
      reference string and sets the line pitch, so empty lines still take up space. */
   function fitText(state,lines,measure,ref){
@@ -118,9 +120,15 @@
     const track=num(state.letterSpacing,0),spacing=num(state.lineSpacing,100)/100;
     const refH=Math.max(.3,ref.ascent+ref.descent);
     const metrics=lines.map(function(line){
-      if(!line)return null;
+      if(!/\S/.test(line))return null;
       const m=measure(line);
+      const ink=m.advances.map(function(a,i){
+        const b=m.bounds?m.bounds[i]:{left:0,right:(i+1<m.advances.length?m.advances[i+1]:m.width)-a};
+        return b?{left:a+b.left,right:a+b.right,index:i}:null;
+      }).filter(Boolean);
+      if(!ink.length)return null;
       return{chars:m.advances.length,advances:m.advances,width:m.width,
+        ink:ink,
         ascent:m.ascent>0||m.descent>0?m.ascent:ref.ascent,descent:m.ascent>0||m.descent>0?m.descent:ref.descent};
     });
     const empty=metrics.every(function(m){return !m});
@@ -129,34 +137,44 @@
       textAreaOverflow:innerW<=0||innerH<=0,trackOverflow:false};
     if(empty||result.textAreaOverflow)return result;
 
-    // Width constraint per line: fs*width + (chars-1)*track <= innerW
-    let fsW=Infinity;
+    // Every right ink edge must be within innerW of every left edge.
+    // Each constraint is linear in font size, even when negative tracking
+    // makes character origins cross. Keep the complete feasible interval.
+    let fsMin=0,fsMax=Infinity;
     metrics.forEach(function(m){
       if(!m)return;
-      const trackSpan=Math.max(0,m.chars-1)*track;
-      if(innerW-trackSpan<=0){result.trackOverflow=true;return}
-      if(m.width>0)fsW=Math.min(fsW,(innerW-trackSpan)/m.width);
+      m.ink.forEach(function(right){m.ink.forEach(function(left){
+        const span=right.right-left.left,available=innerW-(right.index-left.index)*track;
+        if(span>0)fsMax=Math.min(fsMax,available/span);
+        else if(span<0)fsMin=Math.max(fsMin,available/span);
+        else if(available<0)result.trackOverflow=true;
+      })});
     });
-    if(result.trackOverflow)return result;
 
-    // Height constraint: ink of first line top to ink of last line bottom.
-    const first=metrics.findIndex(function(m){return m}),last=metrics.length-1-metrics.slice().reverse().findIndex(function(m){return m});
+    // Include every line's ink; an accent or descender on an intermediate
+    // line can extend beyond the first/last line at tight line spacing.
     const pitch=refH*spacing;
-    const heightPerFs=metrics[first].ascent+(last-first)*pitch+metrics[last].descent;
-    const fs=Math.max(.1,Math.min(fsW,innerH/heightPerFs));
+    let top=Infinity,bottom=-Infinity;
+    metrics.forEach(function(m,i){if(m){top=Math.min(top,i*pitch-m.ascent);bottom=Math.max(bottom,i*pitch+m.descent)}});
+    const heightPerFs=bottom-top;
+    fsMax=Math.min(fsMax,innerH/heightPerFs);
+    if(result.trackOverflow||fsMax<=0||fsMax<fsMin){result.trackOverflow=true;return result}
+    const fs=fsMax;
     result.fontSize=fs;
     result.letterHeight=fs*Math.max.apply(null,metrics.filter(Boolean).map(function(m){return m.ascent+m.descent}));
 
     const inkTop=(H-heightPerFs*fs)/2;
-    const firstBaseline=inkTop+metrics[first].ascent*fs;
+    const firstBaseline=inkTop-top*fs;
     metrics.forEach(function(m,i){
       if(!m)return;
-      const baseline=firstBaseline+(i-first)*pitch*fs;
-      const lineWidth=m.width*fs+Math.max(0,m.chars-1)*track;
+      const baseline=firstBaseline+i*pitch*fs;
+      const left=Math.min.apply(null,m.ink.map(function(b){return b.left*fs+b.index*track}));
+      const right=Math.max.apply(null,m.ink.map(function(b){return b.right*fs+b.index*track}));
+      const lineWidth=right-left;
       let x0=inset+(innerW-lineWidth)/2;
       if(state.align==='left')x0=inset;
       if(state.align==='right')x0=W-inset-lineWidth;
-      const xs=m.advances.map(function(a,k){return round(x0+a*fs+k*track,4)});
+      const xs=m.advances.map(function(a,k){return round(x0-left+a*fs+k*track,4)});
       result.glyphs.push({line:i,text:lines[i],baseline:round(baseline,4),xs:xs,width:lineWidth});
     });
     return result;
@@ -164,7 +182,7 @@
 
   function formatLength(mm,unit){
     const u=MM_PER[unit]?unit:'mm';
-    const places=u==='mm'?0:u==='cm'?1:2;
+    const places=u==='mm'?3:u==='cm'?4:5;
     return round(mm/MM_PER[u],places)+'';
   }
 
